@@ -1,17 +1,17 @@
 /*
- * Copyright 2006-2018 The MZmine 2 Development Team
+ * Copyright 2006-2020 The MZmine Development Team
  *
- * This file is part of MZmine 2.
+ * This file is part of MZmine.
  *
- * MZmine 2 is free software; you can redistribute it and/or modify it under the terms of the GNU
+ * MZmine is free software; you can redistribute it and/or modify it under the terms of the GNU
  * General Public License as published by the Free Software Foundation; either version 2 of the
  * License, or (at your option) any later version.
  *
- * MZmine 2 is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
- * even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
+ * MZmine is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+ * the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
+ * Public License for more details.
  *
- * You should have received a copy of the GNU General Public License along with MZmine 2; if not,
+ * You should have received a copy of the GNU General Public License along with MZmine; if not,
  * write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301
  * USA
  */
@@ -20,6 +20,9 @@ package io.github.mzmine.taskcontrol;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
 
 /**
  * An abstract implementation of task which defines common methods to make Task implementation
@@ -31,6 +34,20 @@ public abstract class AbstractTask implements Task {
   private String errorMessage = null;
   // listener to control status changes
   private List<TaskStatusListener> listener;
+
+  private StringProperty name = new SimpleStringProperty("Gagaga");
+
+  public final String getName() {
+    return name.get();
+  }
+
+  public final void setName(String value) {
+    name.set(value);
+  }
+
+  public StringProperty nameProperty() {
+    return name;
+  }
 
 
   /**

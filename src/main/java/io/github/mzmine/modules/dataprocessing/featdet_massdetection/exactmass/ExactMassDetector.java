@@ -1,17 +1,17 @@
 /*
- * Copyright 2006-2018 The MZmine 2 Development Team
+ * Copyright 2006-2020 The MZmine Development Team
  * 
- * This file is part of MZmine 2.
+ * This file is part of MZmine.
  * 
- * MZmine 2 is free software; you can redistribute it and/or modify it under the terms of the GNU
+ * MZmine is free software; you can redistribute it and/or modify it under the terms of the GNU
  * General Public License as published by the Free Software Foundation; either version 2 of the
  * License, or (at your option) any later version.
  * 
- * MZmine 2 is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
- * even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
+ * MZmine is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+ * the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
+ * Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with MZmine 2; if not,
+ * You should have received a copy of the GNU General Public License along with MZmine; if not,
  * write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301
  * USA
  */
@@ -36,9 +36,9 @@ public class ExactMassDetector implements MassDetector {
   public DataPoint[] getMassValues(Scan scan, ParameterSet parameters) {
     return getMassValues(scan.getDataPoints(), parameters);
   }
-  
+
   /**
-   * @see net.sf.mzmine.modules.peakpicking.threestep.massdetection.MassDetector#getMassValues(io.github.mzmine.datamodel.Scan)
+   * @see io.github.mzmine.modules.peakpicking.threestep.massdetection.MassDetector#getMassValues(io.github.mzmine.datamodel.Scan)
    */
   public DataPoint[] getMassValues(DataPoint dataPoints[], ParameterSet parameters) {
 
@@ -185,13 +185,15 @@ public class ExactMassDetector implements MassDetector {
         double mLeft = (leftY1 - leftY2) / (leftX1 - leftX2);
 
         if (mLeft == 0.0) {
-          // If slope is zero, we calculate the desired point as the middle point
+          // If slope is zero, we calculate the desired point as the
+          // middle point
           xLeft = (leftX1 + leftX2) / 2;
-        }
-        else {
-          // We calculate the desired point (at half intensity) with the
+        } else {
+          // We calculate the desired point (at half intensity) with
+          // the
           // linear equation
-          // X = X1 + [(Y - Y1) / m ], where Y = half of total intensity
+          // X = X1 + [(Y - Y1) / m ], where Y = half of total
+          // intensity
           xLeft = leftX1 + (((halfIntensity) - leftY1) / mLeft);
         }
         continue;
@@ -216,13 +218,15 @@ public class ExactMassDetector implements MassDetector {
         double mRight = (rightY1 - rightY2) / (rightX1 - rightX2);
 
         if (mRight == 0.0) {
-          // If slope is zero, we calculate the desired point as the middle point
+          // If slope is zero, we calculate the desired point as the
+          // middle point
           xRight = (rightX1 + rightX2) / 2;
-        }
-        else {
-          // We calculate the desired point (at half intensity) with the
+        } else {
+          // We calculate the desired point (at half intensity) with
+          // the
           // linear equation
-          // X = X1 + [(Y - Y1) / m ], where Y = half of total intensity
+          // X = X1 + [(Y - Y1) / m ], where Y = half of total
+          // intensity
           xRight = rightX1 + (((halfIntensity) - rightY1) / mRight);
         }
         break;

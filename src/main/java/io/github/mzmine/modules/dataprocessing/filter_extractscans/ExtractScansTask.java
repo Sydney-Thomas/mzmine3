@@ -1,17 +1,17 @@
 /*
- * Copyright 2006-2018 The MZmine 2 Development Team
+ * Copyright 2006-2020 The MZmine Development Team
  * 
- * This file is part of MZmine 2.
+ * This file is part of MZmine.
  * 
- * MZmine 2 is free software; you can redistribute it and/or modify it under the terms of the GNU
+ * MZmine is free software; you can redistribute it and/or modify it under the terms of the GNU
  * General Public License as published by the Free Software Foundation; either version 2 of the
  * License, or (at your option) any later version.
  * 
- * MZmine 2 is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
- * even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
+ * MZmine is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+ * the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
+ * Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with MZmine 2; if not,
+ * You should have received a copy of the GNU General Public License along with MZmine; if not,
  * write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301
  * USA
  */
@@ -25,6 +25,9 @@ import java.io.IOException;
 import java.text.DecimalFormat;
 import java.util.Arrays;
 import java.util.List;
+
+import org.apache.commons.io.FilenameUtils;
+
 import com.google.common.collect.Range;
 
 import io.github.mzmine.datamodel.DataPoint;
@@ -50,7 +53,6 @@ class ExtractScansTask extends AbstractTask {
   private double minTime, maxTime;
   private boolean useCenterTime;
 
-
   ExtractScansTask(ParameterSet parameters) {
     dataFiles = Arrays.asList(parameters.getParameter(ExtractScansParameters.dataFiles).getValue()
         .getMatchingRawDataFiles());
@@ -58,7 +60,8 @@ class ExtractScansTask extends AbstractTask {
     centerTime = parameters.getParameter(ExtractScansParameters.centerTime).getValue();
     file = parameters.getParameter(ExtractScansParameters.file).getValue();
     autoMax = parameters.getParameter(ExtractScansParameters.autoMax).getValue();
-    // exportSummary = parameters.getParameter(ExtractScansParameters.exportSummary).getValue();
+    // exportSummary =
+    // parameters.getParameter(ExtractScansParameters.exportSummary).getValue();
     exportHeader = parameters.getParameter(ExtractScansParameters.exportHeader).getValue();
     // export mass list
     useMassList = parameters.getParameter(ExtractScansParameters.useMassList).getValue();
@@ -79,7 +82,6 @@ class ExtractScansTask extends AbstractTask {
   public String getTaskDescription() {
     return "Extracting scans to CSV file(s)";
   }
-
 
   public void run() {
     setStatus(TaskStatus.PROCESSING);
@@ -163,7 +165,7 @@ class ExtractScansTask extends AbstractTask {
   private void exportScans(File dir, RawDataFile raw, int start, int scans, double pp) {
     // Open file
     DecimalFormat format = new DecimalFormat("00");
-    File fileDir = new File(dir, FileAndPathUtil.eraseFormat(raw.getName()));
+    File fileDir = new File(dir, FilenameUtils.removeExtension(raw.getName()));
     FileAndPathUtil.createDirectory(fileDir);
     int end = Math.min(scans + start, raw.getNumOfScans());
     String linescans = "scan" + delimiter + raw.getScanNumbers()[start] + delimiter + "to"

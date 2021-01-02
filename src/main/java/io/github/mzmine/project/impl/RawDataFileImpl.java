@@ -1,17 +1,17 @@
 /*
- * Copyright 2006-2018 The MZmine 2 Development Team
- * 
- * This file is part of MZmine 2.
- * 
- * MZmine 2 is free software; you can redistribute it and/or modify it under the terms of the GNU
+ * Copyright 2006-2020 The MZmine Development Team
+ *
+ * This file is part of MZmine.
+ *
+ * MZmine is free software; you can redistribute it and/or modify it under the terms of the GNU
  * General Public License as published by the Free Software Foundation; either version 2 of the
  * License, or (at your option) any later version.
- * 
- * MZmine 2 is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
- * even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- * 
- * You should have received a copy of the GNU General Public License along with MZmine 2; if not,
+ *
+ * MZmine is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+ * the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
+ * Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with MZmine; if not,
  * write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301
  * USA
  */
@@ -23,10 +23,11 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
-import java.nio.FloatBuffer;
+import java.nio.DoubleBuffer;
 import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.EnumSet;
 import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.Hashtable;
@@ -35,17 +36,22 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import com.google.common.collect.Range;
 import com.google.common.primitives.Ints;
-
 import io.github.mzmine.datamodel.DataPoint;
-import io.github.mzmine.datamodel.MassList;
+import io.github.mzmine.datamodel.PolarityType;
 import io.github.mzmine.datamodel.RawDataFile;
-import io.github.mzmine.datamodel.RawDataFileWriter;
 import io.github.mzmine.datamodel.Scan;
 import io.github.mzmine.datamodel.impl.SimpleDataPoint;
+import io.github.mzmine.main.MZmineCore;
+import io.github.mzmine.util.MemoryMapStorage;
+import io.github.mzmine.util.javafx.FxColorUtil;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleObjectProperty;
+import javafx.scene.paint.Color;
 
 /**
  * RawDataFile implementation. It provides storage of data points for scans and mass lists using the
@@ -57,14 +63,17 @@ import io.github.mzmine.datamodel.impl.SimpleDataPoint;
  * the two TreeMaps. When the project is saved, the contents of the dataPointsFile are consolidated
  * - only data points referenced by the TreeMaps are saved (see the RawDataFileSaveHandler class).
  */
-public class RawDataFileImpl implements RawDataFile, RawDataFileWriter {
+public class RawDataFileImpl implements RawDataFile {
+
+  public static final String SAVE_IDENTIFIER = "Raw data file";
 
   private final Logger logger = Logger.getLogger(this.getClass().getName());
 
   // Name of this raw data file - may be changed by the user
   private String dataFileName;
 
-  private final Hashtable<Integer, Range<Double>> dataMZRange, dataRTRange;
+  private final Hashtable<Integer, Range<Double>> dataMZRange;
+  private final Hashtable<Integer, Range<Float>> dataRTRange;
   private final Hashtable<Integer, Double> dataMaxBasePeakIntensity, dataMaxTIC;
   private final Hashtable<Integer, int[]> scanNumbersCache;
 
@@ -73,32 +82,46 @@ public class RawDataFileImpl implements RawDataFile, RawDataFileWriter {
   private final TreeMap<Integer, Integer> dataPointsLengths;
 
   // Temporary file for scan data storage
-  private File dataPointsFileName;
-  private RandomAccessFile dataPointsFile;
+  private File storageFileName;
+  private RandomAccessFile storageFile;
+  private final MemoryMapStorage storageMemoryMap = new MemoryMapStorage();
 
-  // To store mass lists that have been added but not yet reflected in the GUI by the
+
+
+  private ObjectProperty<Color> color;
+
+  // To store mass lists that have been added but not yet reflected in the GUI
+  // by the
   // notifyUpdatedMassLists() method
-  private final List<MassList> newMassLists = new ArrayList<>();
+  // private final List<MassList> newMassLists = new ArrayList<>();
 
   /**
    * Scans
    */
-  private final Hashtable<Integer, StorableScan> scans;
+  protected final Hashtable<Integer, Scan> scans;
 
   public RawDataFileImpl(String dataFileName) throws IOException {
 
     this.dataFileName = dataFileName;
 
     // Prepare the hashtables for scan numbers and data limits.
-    scanNumbersCache = new Hashtable<Integer, int[]>();
-    dataMZRange = new Hashtable<Integer, Range<Double>>();
-    dataRTRange = new Hashtable<Integer, Range<Double>>();
-    dataMaxBasePeakIntensity = new Hashtable<Integer, Double>();
-    dataMaxTIC = new Hashtable<Integer, Double>();
-    scans = new Hashtable<Integer, StorableScan>();
-    dataPointsOffsets = new TreeMap<Integer, Long>();
-    dataPointsLengths = new TreeMap<Integer, Integer>();
+    scanNumbersCache = new Hashtable<>();
+    dataMZRange = new Hashtable<>();
+    dataRTRange = new Hashtable<>();
+    dataMaxBasePeakIntensity = new Hashtable<>();
+    dataMaxTIC = new Hashtable<>();
+    scans = new Hashtable<>();
+    dataPointsOffsets = new TreeMap<>();
+    dataPointsLengths = new TreeMap<>();
 
+    color = new SimpleObjectProperty<>();
+    color.setValue(MZmineCore.getConfiguration().getDefaultColorPalette().getNextColor());
+
+  }
+
+  @Override
+  public @Nonnull MemoryMapStorage getMemoryMapStorage() {
+    return storageMemoryMap;
   }
 
   @Override
@@ -118,7 +141,7 @@ public class RawDataFileImpl implements RawDataFile, RawDataFileWriter {
    * been added yet to this RawDataFileImpl instance
    */
   public RandomAccessFile getDataPointsFile() {
-    return dataPointsFile;
+    return storageFile;
   }
 
   /**
@@ -128,18 +151,21 @@ public class RawDataFileImpl implements RawDataFile, RawDataFileWriter {
    */
   public synchronized void openDataPointsFile(File dataPointsFileName) throws IOException {
 
-    if (this.dataPointsFile != null) {
+    if (this.storageFile != null) {
       throw new IOException("Cannot open another data points file, because one is already open");
     }
 
-    this.dataPointsFileName = dataPointsFileName;
-    this.dataPointsFile = new RandomAccessFile(dataPointsFileName, "rw");
+    this.storageFileName = dataPointsFileName;
+    this.storageFile = new RandomAccessFile(dataPointsFileName, "rw");
+    FileChannel fileChannel = storageFile.getChannel();
+    // this.storageMemoryMap = fileChannel.map(FileChannel.MapMode.READ_WRITE, 0,
+    // Integer.MAX_VALUE);
 
     // Locks the temporary file so it is not removed when another instance
     // of MZmine is starting. Lock will be automatically released when this
-    // instance of MZmine exits. Locking may fail on network-mounted filesystems.
+    // instance of MZmine exits. Locking may fail on network-mounted
+    // filesystems.
     try {
-      FileChannel fileChannel = dataPointsFile.getChannel();
       fileChannel.lock();
     } catch (IOException e) {
       logger.log(Level.WARNING, "Failed to lock the file " + dataPointsFileName, e);
@@ -169,34 +195,88 @@ public class RawDataFileImpl implements RawDataFile, RawDataFileWriter {
   }
 
   /**
+   * @param rt The rt
+   * @param mslevel The ms level
+   * @return The scan number at a given retention time within a range of 2 (min/sec?) or -1 if no
+   *         scan can be found.
+   */
+  @Override
+  public int getScanNumberAtRT(float rt, int mslevel) {
+    if (rt > getDataRTRange(mslevel).upperEndpoint()) {
+      return -1;
+    }
+    Range<Float> range = Range.closed(rt - 2, rt + 2);
+    int[] scanNumbers = getScanNumbers(mslevel, range);
+    double minDiff = 10E6;
+
+    for (int i = 0; i < scanNumbers.length; i++) {
+      int scanNum = scanNumbers[i];
+      double diff = Math.abs(rt - getScan(scanNum).getRetentionTime());
+      if (diff < minDiff) {
+        minDiff = diff;
+      } else if (diff > minDiff) { // not triggered in first run
+        return scanNumbers[i - 1]; // the previous one was better
+      }
+    }
+    return -1;
+  }
+
+  /**
+   * @param rt The rt
+   * @return The scan number at a given retention time within a range of 2 (min/sec?) or -1 if no
+   *         scan can be found.
+   */
+  @Override
+  public int getScanNumberAtRT(float rt) {
+    if (rt > getDataRTRange().upperEndpoint()) {
+      return -1;
+    }
+    int[] scanNumbers = getScanNumbers();
+    double minDiff = 10E10;
+
+    for (int i = 0; i < scanNumbers.length; i++) {
+      int scanNum = scanNumbers[i];
+      double diff = Math.abs(rt - getScan(scanNum).getRetentionTime());
+      if (diff < minDiff) {
+        minDiff = diff;
+      } else if (diff > minDiff) { // not triggered in first run
+        return scanNumbers[i - 1]; // the previous one was better
+      }
+    }
+    return -1;
+  }
+
+  /**
    * @see io.github.mzmine.datamodel.RawDataFile#getScanNumbers(int)
    */
   @Override
   public @Nonnull int[] getScanNumbers(int msLevel) {
-    if (scanNumbersCache.containsKey(msLevel))
+    if (scanNumbersCache.containsKey(msLevel)) {
       return scanNumbersCache.get(msLevel);
-    Range<Double> all = Range.all();
+    }
+    Range<Float> all = Range.all();
     int scanNumbers[] = getScanNumbers(msLevel, all);
     scanNumbersCache.put(msLevel, scanNumbers);
     return scanNumbers;
   }
 
   /**
-   * @see io.github.mzmine.datamodel.RawDataFile#getScanNumbers(int, double, double)
+   * @see io.github.mzmine.datamodel.RawDataFile#getScanNumbers(int, Range)
    */
   @Override
-  public @Nonnull int[] getScanNumbers(int msLevel, @Nonnull Range<Double> rtRange) {
+  public @Nonnull int[] getScanNumbers(int msLevel, @Nonnull Range<Float> rtRange) {
 
     assert rtRange != null;
 
     ArrayList<Integer> eligibleScanNumbers = new ArrayList<Integer>();
 
-    Enumeration<StorableScan> scansEnum = scans.elements();
+    Enumeration<? extends Scan> scansEnum = scans.elements();
     while (scansEnum.hasMoreElements()) {
       Scan scan = scansEnum.nextElement();
 
-      if ((scan.getMSLevel() == msLevel) && (rtRange.contains(scan.getRetentionTime())))
+      if ((scan.getMSLevel() == msLevel) && (rtRange.contains(scan.getRetentionTime()))) {
         eligibleScanNumbers.add(scan.getScanNumber());
+      }
     }
 
     int[] numbersArray = Ints.toArray(eligibleScanNumbers);
@@ -209,10 +289,12 @@ public class RawDataFileImpl implements RawDataFile, RawDataFileWriter {
    * @see io.github.mzmine.datamodel.RawDataFile#getScanNumbers()
    */
   @Override
-  public @Nonnull int[] getScanNumbers() {
+  @Nonnull
+  public int[] getScanNumbers() {
 
-    if (scanNumbersCache.containsKey(0))
+    if (scanNumbersCache.containsKey(0) && scanNumbersCache.get(0).length == scans.size()) {
       return scanNumbersCache.get(0);
+    }
 
     Set<Integer> allScanNumbers = scans.keySet();
     int[] numbersArray = Ints.toArray(allScanNumbers);
@@ -228,11 +310,12 @@ public class RawDataFileImpl implements RawDataFile, RawDataFileWriter {
    * @see io.github.mzmine.datamodel.RawDataFile#getMSLevels()
    */
   @Override
-  public @Nonnull int[] getMSLevels() {
+  @Nonnull
+  public int[] getMSLevels() {
 
     Set<Integer> msLevelsSet = new HashSet<Integer>();
 
-    Enumeration<StorableScan> scansEnum = scans.elements();
+    Enumeration<? extends Scan> scansEnum = scans.elements();
     while (scansEnum.hasMoreElements()) {
       Scan scan = scansEnum.nextElement();
       msLevelsSet.add(scan.getMSLevel());
@@ -245,37 +328,42 @@ public class RawDataFileImpl implements RawDataFile, RawDataFileWriter {
   }
 
   /**
-   * @see io.github.mzmine.datamodel.RawDataFile#getDataMaxBasePeakIntensity()
+   * @see io.github.mzmine.datamodel.RawDataFile#getDataMaxBasePeakIntensity(int)
    */
   @Override
   public double getDataMaxBasePeakIntensity(int msLevel) {
 
     // check if we have this value already cached
     Double maxBasePeak = dataMaxBasePeakIntensity.get(msLevel);
-    if (maxBasePeak != null)
+    if (maxBasePeak != null) {
       return maxBasePeak;
+    }
 
     // find the value
-    Enumeration<StorableScan> scansEnum = scans.elements();
+    Enumeration<? extends Scan> scansEnum = scans.elements();
     while (scansEnum.hasMoreElements()) {
       Scan scan = scansEnum.nextElement();
 
       // ignore scans of other ms levels
-      if (scan.getMSLevel() != msLevel)
+      if (scan.getMSLevel() != msLevel) {
         continue;
+      }
 
-      DataPoint scanBasePeak = scan.getHighestDataPoint();
-      if (scanBasePeak == null)
+      Double scanBasePeak = scan.getBasePeakIntensity();
+      if (scanBasePeak == null) {
         continue;
+      }
 
-      if ((maxBasePeak == null) || (scanBasePeak.getIntensity() > maxBasePeak))
-        maxBasePeak = scanBasePeak.getIntensity();
+      if ((maxBasePeak == null) || (scanBasePeak > maxBasePeak)) {
+        maxBasePeak = scanBasePeak;
+      }
 
     }
 
     // return -1 if no scan at this MS level
-    if (maxBasePeak == null)
+    if (maxBasePeak == null) {
       maxBasePeak = -1d;
+    }
 
     // cache the value
     dataMaxBasePeakIntensity.put(msLevel, maxBasePeak);
@@ -285,33 +373,37 @@ public class RawDataFileImpl implements RawDataFile, RawDataFileWriter {
   }
 
   /**
-   * @see io.github.mzmine.datamodel.RawDataFile#getDataMaxTotalIonCurrent()
+   * @see io.github.mzmine.datamodel.RawDataFile#getDataMaxTotalIonCurrent(int)
    */
   @Override
   public double getDataMaxTotalIonCurrent(int msLevel) {
 
     // check if we have this value already cached
     Double maxTIC = dataMaxTIC.get(msLevel);
-    if (maxTIC != null)
+    if (maxTIC != null) {
       return maxTIC.doubleValue();
+    }
 
     // find the value
-    Enumeration<StorableScan> scansEnum = scans.elements();
+    Enumeration<? extends Scan> scansEnum = scans.elements();
     while (scansEnum.hasMoreElements()) {
       Scan scan = scansEnum.nextElement();
 
       // ignore scans of other ms levels
-      if (scan.getMSLevel() != msLevel)
+      if (scan.getMSLevel() != msLevel) {
         continue;
+      }
 
-      if ((maxTIC == null) || (scan.getTIC() > maxTIC))
+      if ((maxTIC == null) || (scan.getTIC() > maxTIC)) {
         maxTIC = scan.getTIC();
+      }
 
     }
 
     // return -1 if no scan at this MS level
-    if (maxTIC == null)
+    if (maxTIC == null) {
       maxTIC = -1d;
+    }
 
     // cache the value
     dataMaxTIC.put(msLevel, maxTIC);
@@ -322,25 +414,26 @@ public class RawDataFileImpl implements RawDataFile, RawDataFileWriter {
 
   public synchronized int storeDataPoints(DataPoint dataPoints[]) throws IOException {
 
-    if (dataPointsFile == null) {
+    if (storageFile == null) {
       File newFile = RawDataFileImpl.createNewDataPointsFile();
       openDataPointsFile(newFile);
     }
 
-    final long currentOffset = dataPointsFile.length();
+    final long currentOffset = storageFile.length();
 
     final int currentID;
-    if (!dataPointsOffsets.isEmpty())
+    if (!dataPointsOffsets.isEmpty()) {
       currentID = dataPointsOffsets.lastKey() + 1;
-    else
+    } else {
       currentID = 1;
+    }
 
     final int numOfDataPoints = dataPoints.length;
 
-    // Convert the dataPoints into a byte array. Each float takes 4 bytes,
-    // so we get the current float offset by dividing the size of the file
-    // by 4
-    final int numOfBytes = numOfDataPoints * 2 * 4;
+    // Convert the dataPoints into a byte array. Each double takes 8 bytes,
+    // so we get the current double offset by dividing the size of the file
+    // by 8
+    final int numOfBytes = numOfDataPoints * 2 * 8;
 
     if (buffer.capacity() < numOfBytes) {
       buffer = ByteBuffer.allocate(numOfBytes * 2);
@@ -350,20 +443,19 @@ public class RawDataFileImpl implements RawDataFile, RawDataFileWriter {
       ((Buffer) buffer).clear();
     }
 
-    FloatBuffer floatBuffer = buffer.asFloatBuffer();
+    DoubleBuffer doubleBuffer = buffer.asDoubleBuffer();
     for (DataPoint dp : dataPoints) {
-      floatBuffer.put((float) dp.getMZ());
-      floatBuffer.put((float) dp.getIntensity());
+      doubleBuffer.put(dp.getMZ());
+      doubleBuffer.put(dp.getIntensity());
     }
 
-    dataPointsFile.seek(currentOffset);
-    dataPointsFile.write(buffer.array(), 0, numOfBytes);
+    storageFile.seek(currentOffset);
+    storageFile.write(buffer.array(), 0, numOfBytes);
 
     dataPointsOffsets.put(currentID, currentOffset);
     dataPointsLengths.put(currentID, numOfDataPoints);
 
     return currentID;
-
   }
 
   public synchronized DataPoint[] readDataPoints(int ID) throws IOException {
@@ -375,7 +467,7 @@ public class RawDataFileImpl implements RawDataFile, RawDataFileWriter {
       throw new IllegalArgumentException("Unknown storage ID " + ID);
     }
 
-    final int numOfBytes = numOfDataPoints * 2 * 4;
+    final int numOfBytes = numOfDataPoints * 2 * 8;
 
     if (buffer.capacity() < numOfBytes) {
       buffer = ByteBuffer.allocate(numOfBytes * 2);
@@ -385,16 +477,16 @@ public class RawDataFileImpl implements RawDataFile, RawDataFileWriter {
       ((Buffer) buffer).clear();
     }
 
-    dataPointsFile.seek(currentOffset);
-    dataPointsFile.read(buffer.array(), 0, numOfBytes);
+    storageFile.seek(currentOffset);
+    storageFile.read(buffer.array(), 0, numOfBytes);
 
-    FloatBuffer floatBuffer = buffer.asFloatBuffer();
+    DoubleBuffer doubleBuffer = buffer.asDoubleBuffer();
 
     DataPoint dataPoints[] = new DataPoint[numOfDataPoints];
 
     for (int i = 0; i < numOfDataPoints; i++) {
-      float mz = floatBuffer.get();
-      float intensity = floatBuffer.get();
+      double mz = doubleBuffer.get();
+      double intensity = doubleBuffer.get();
       dataPoints[i] = new SimpleDataPoint(mz, intensity);
     }
 
@@ -412,110 +504,122 @@ public class RawDataFileImpl implements RawDataFile, RawDataFileWriter {
 
     // When we are loading the project, scan data file is already prepare
     // and we just need store the reference
-    if (newScan instanceof StorableScan) {
-      scans.put(newScan.getScanNumber(), (StorableScan) newScan);
-      return;
-    }
-
-    DataPoint dataPoints[] = newScan.getDataPoints();
-    final int storageID = storeDataPoints(dataPoints);
-
-    StorableScan storedScan = new StorableScan(newScan, this, dataPoints.length, storageID);
-
-    scans.put(newScan.getScanNumber(), storedScan);
+    scans.put(newScan.getScanNumber(), newScan);
 
   }
 
-  /**
-   * @see io.github.mzmine.datamodel.RawDataFileWriter#finishWriting()
-   */
-  @Override
-  public synchronized RawDataFile finishWriting() throws IOException {
-    for (StorableScan scan : scans.values()) {
-      scan.updateValues();
-    }
-    logger.finest("Writing of scans to file " + dataPointsFileName + " finished");
-    return this;
-  }
 
   @Override
-  public @Nonnull Range<Double> getDataMZRange() {
+  @Nonnull
+  public Range<Double> getDataMZRange() {
     return getDataMZRange(0);
   }
 
   @Override
-  public @Nonnull Range<Double> getDataMZRange(int msLevel) {
+  @Nonnull
+  public Range<Double> getDataMZRange(int msLevel) {
 
     // check if we have this value already cached
     Range<Double> mzRange = dataMZRange.get(msLevel);
-    if (mzRange != null)
+    if (mzRange != null) {
       return mzRange;
+    }
 
     // find the value
     for (Scan scan : scans.values()) {
 
       // ignore scans of other ms levels
-      if ((msLevel != 0) && (scan.getMSLevel() != msLevel))
+      if ((msLevel != 0) && (scan.getMSLevel() != msLevel)) {
         continue;
+      }
 
-      if (mzRange == null)
+      if (mzRange == null) {
         mzRange = scan.getDataPointMZRange();
-      else
+      } else {
         mzRange = mzRange.span(scan.getDataPointMZRange());
+      }
 
     }
 
     // cache the value, if we found any
-    if (mzRange != null)
+    if (mzRange != null) {
       dataMZRange.put(msLevel, mzRange);
-    else
+    } else {
       mzRange = Range.singleton(0.0);
+    }
 
     return mzRange;
 
   }
 
   @Override
-  public @Nonnull Range<Double> getDataRTRange() {
+  @Nonnull
+  public Range<Float> getDataRTRange() {
     return getDataRTRange(0);
   }
 
-  @Override
-  public @Nonnull Range<Double> getDataRTRange(int msLevel) {
+  // @Nonnull
+  // @Override
+  // public Range<Double> getDataMobilityRange() {
+  // return null;
+  // }
 
+  @Nonnull
+  @Override
+  public Range<Float> getDataRTRange(Integer msLevel) {
+    if (msLevel == null) {
+      return getDataRTRange();
+    }
     // check if we have this value already cached
-    Range<Double> rtRange = dataRTRange.get(msLevel);
-    if (rtRange != null)
+    Range<Float> rtRange = dataRTRange.get(msLevel);
+    if (rtRange != null) {
       return rtRange;
+    }
 
     // find the value
     for (Scan scan : scans.values()) {
 
       // ignore scans of other ms levels
-      if ((msLevel != 0) && (scan.getMSLevel() != msLevel))
+      if ((msLevel != 0) && (scan.getMSLevel() != msLevel)) {
         continue;
+      }
 
-      if (rtRange == null)
+      if (rtRange == null) {
         rtRange = Range.singleton(scan.getRetentionTime());
-      else
+      } else {
         rtRange = rtRange.span(Range.singleton(scan.getRetentionTime()));
+      }
 
     }
 
     // cache the value
-    if (rtRange != null)
+    if (rtRange != null) {
       dataRTRange.put(msLevel, rtRange);
-    else
-      rtRange = Range.singleton(0.0);
+    } else {
+      rtRange = Range.singleton(0.0f);
+    }
 
     return rtRange;
-
   }
 
-  public void setRTRange(int msLevel, Range<Double> rtRange) {
+  // @Nonnull
+  // @Override
+  // public Range<Double> getDataMobilityRange(int msLevel) {
+  // return mobilityRange;
+  // }
+  //
+  // @Nonnull
+  // @Override
+  // public MobilityType getMobilityType() {
+  // return mobilityType;
+  // }
+
+  @Override
+  public void setRTRange(int msLevel, Range<Float> rtRange) {
     dataRTRange.put(msLevel, rtRange);
   }
 
+  @Override
   public void setMZRange(int msLevel, Range<Double> mzRange) {
     dataMZRange.put(msLevel, mzRange);
   }
@@ -534,20 +638,53 @@ public class RawDataFileImpl implements RawDataFile, RawDataFileWriter {
   }
 
   @Override
+  public List<PolarityType> getDataPolarity() {
+    Enumeration<Scan> scansEnum = scans.elements();
+    // create an enum set to store different polarity types encountered within the file
+    EnumSet<PolarityType> polarityTypes = EnumSet.noneOf(PolarityType.class);
+    while (scansEnum.hasMoreElements()) {
+      Scan scan = scansEnum.nextElement();
+      polarityTypes.add(scan.getPolarity());
+    }
+    // return as list
+    return polarityTypes.stream().collect(Collectors.toList());
+  }
+
+  @Override
+  public java.awt.Color getColorAWT() {
+    return FxColorUtil.fxColorToAWT(color.getValue());
+  }
+
+  @Override
+  public javafx.scene.paint.Color getColor() {
+    return color.getValue();
+  }
+
+  @Override
+  public void setColor(javafx.scene.paint.Color color) {
+    this.color.setValue(color);
+  }
+
+  @Override
+  public ObjectProperty<javafx.scene.paint.Color> colorProperty() {
+    return color;
+  }
+
+  @Override
   public synchronized void close() {
     try {
-      if (dataPointsFileName != null) {
-        dataPointsFile.close();
-        dataPointsFileName.delete();
+      if (storageFileName != null) {
+        storageFile.close();
+        storageFileName.delete();
       }
     } catch (IOException e) {
-      logger.warning("Could not close file " + dataPointsFileName + ": " + e.toString());
+      logger.warning("Could not close file " + storageFileName + ": " + e.toString());
     }
   }
 
-
   @Override
-  public @Nonnull String getName() {
+  @Nonnull
+  public String getName() {
     return dataFileName;
   }
 
@@ -561,4 +698,6 @@ public class RawDataFileImpl implements RawDataFile, RawDataFileWriter {
     return dataFileName;
   }
 
+
+  // TODO make sure that equals and hashCode() works
 }

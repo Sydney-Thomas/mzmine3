@@ -1,21 +1,20 @@
 /*
- * Copyright 2006-2015 The MZmine 2 Development Team
+ * Copyright 2006-2020 The MZmine Development Team
  * 
- * This file is part of MZmine 2.
+ * This file is part of MZmine.
  * 
- * MZmine 2 is free software; you can redistribute it and/or modify it under the terms of the GNU
+ * MZmine is free software; you can redistribute it and/or modify it under the terms of the GNU
  * General Public License as published by the Free Software Foundation; either version 2 of the
  * License, or (at your option) any later version.
  * 
- * MZmine 2 is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
- * even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
+ * MZmine is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+ * the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
+ * Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with MZmine 2; if not,
+ * You should have received a copy of the GNU General Public License along with MZmine; if not,
  * write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301
  * USA
  */
-
 
 package io.github.mzmine.gui.chartbasics;
 
@@ -244,7 +243,6 @@ public class HistogramChartFactory {
     return fit;
   }
 
-
   /**
    * Adds annotations to the Gaussian fit parameters
    * 
@@ -260,7 +258,6 @@ public class HistogramChartFactory {
     plot.addDomainMarker(new ValueMarker(fit[1] - fit[2], c, s));
     plot.addDomainMarker(new ValueMarker(fit[1] + fit[2], c, s));
   }
-
 
   public static JFreeChart createHistogram(double[] data, double binwidth) {
     return createHistogram(data, binwidth, null);
@@ -301,7 +298,6 @@ public class HistogramChartFactory {
       return null;
   }
 
-
   public static JFreeChart createHistogram(XYSeries series, double barwidth, String yAxisLabel) {
     XYSeriesCollection xydata = new XYSeriesCollection(series);
     XYBarDataset dataset = new XYBarDataset(xydata, barwidth);
@@ -323,7 +319,6 @@ public class HistogramChartFactory {
     xybarrenderer.setDrawBarOutline(false);
     return chart;
   }
-
 
   /**
    * Converts from double array to histogram array
@@ -505,7 +500,6 @@ public class HistogramChartFactory {
     list.add(new SimpleDataPoint(x, bins[i]));
   }
 
-
   /**
    * Adds a value to a Histogram array. bins array should have length = datawidth/binwidth +1
    * (datawidth = max-min)
@@ -523,8 +517,6 @@ public class HistogramChartFactory {
       i = bins.length - 1;
     bins[i]++;
   }
-
-
 
   public static JFreeChart createHistogramOld(double[] data, int bin, String yAxisLabel, double min,
       double max) {

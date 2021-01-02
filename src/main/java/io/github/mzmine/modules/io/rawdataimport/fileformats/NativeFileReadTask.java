@@ -1,17 +1,17 @@
 /*
- * Copyright 2006-2018 The MZmine 2 Development Team
- * 
- * This file is part of MZmine 2.
- * 
- * MZmine 2 is free software; you can redistribute it and/or modify it under the terms of the GNU
+ * Copyright 2006-2020 The MZmine Development Team
+ *
+ * This file is part of MZmine.
+ *
+ * MZmine is free software; you can redistribute it and/or modify it under the terms of the GNU
  * General Public License as published by the Free Software Foundation; either version 2 of the
  * License, or (at your option) any later version.
- * 
- * MZmine 2 is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
- * even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- * 
- * You should have received a copy of the GNU General Public License along with MZmine 2; if not,
+ *
+ * MZmine is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+ * the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
+ * Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with MZmine; if not,
  * write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301
  * USA
  */
@@ -27,17 +27,12 @@ import java.nio.ByteOrder;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
 import com.google.common.base.Strings;
 import com.google.common.collect.Range;
-
-import io.github.mzmine.datamodel.DataPoint;
 import io.github.mzmine.datamodel.MZmineProject;
 import io.github.mzmine.datamodel.MassSpectrumType;
 import io.github.mzmine.datamodel.PolarityType;
 import io.github.mzmine.datamodel.RawDataFile;
-import io.github.mzmine.datamodel.RawDataFileWriter;
-import io.github.mzmine.datamodel.impl.SimpleDataPoint;
 import io.github.mzmine.datamodel.impl.SimpleScan;
 import io.github.mzmine.modules.io.rawdataimport.RawDataFileType;
 import io.github.mzmine.taskcontrol.AbstractTask;
@@ -57,8 +52,7 @@ public class NativeFileReadTask extends AbstractTask {
   private File file;
   private RawDataFileType fileType;
   private MZmineProject project;
-  private RawDataFileWriter newMZmineFile;
-  private RawDataFile finalRawDataFile;
+  private RawDataFile newMZmineFile;
 
   private Process dumper = null;
 
@@ -68,13 +62,15 @@ public class NativeFileReadTask extends AbstractTask {
    * These variables are used during parsing of the RAW dump.
    */
   private int scanNumber = 0, msLevel = 0, precursorCharge = 0, numOfDataPoints;
+  private double mobility = 0.0; // TODO add support!
   private String scanId;
   private PolarityType polarity;
   private Range<Double> mzRange;
-  private double retentionTime = 0, precursorMZ = 0;
+  private float retentionTime = 0;
+  private double precursorMZ = 0;
 
   public NativeFileReadTask(MZmineProject project, File fileToOpen, RawDataFileType fileType,
-      RawDataFileWriter newMZmineFile) {
+      RawDataFile newMZmineFile) {
     this.project = project;
     this.file = fileToOpen;
     this.fileType = fileType;
@@ -84,6 +80,7 @@ public class NativeFileReadTask extends AbstractTask {
   /**
    * @see io.github.mzmine.taskcontrol.Task#getFinishedPercentage()
    */
+  @Override
   public double getFinishedPercentage() {
     return totalScans == 0 ? 0 : (double) parsedScans / totalScans;
   }
@@ -91,6 +88,7 @@ public class NativeFileReadTask extends AbstractTask {
   /**
    * @see java.lang.Runnable#run()
    */
+  @Override
   public void run() {
 
     setStatus(TaskStatus.PROCESSING);
@@ -149,16 +147,15 @@ public class NativeFileReadTask extends AbstractTask {
             + parsedScans + " out of " + totalScans + ")"));
       }
 
-      // Close file
-      finalRawDataFile = newMZmineFile.finishWriting();
-      project.addFile(finalRawDataFile);
+      project.addFile(newMZmineFile);
 
     } catch (Throwable e) {
 
       e.printStackTrace();
 
-      if (dumper != null)
+      if (dumper != null) {
         dumper.destroy();
+      }
 
       if (getStatus() == TaskStatus.PROCESSING) {
         setStatus(TaskStatus.ERROR);
@@ -173,6 +170,7 @@ public class NativeFileReadTask extends AbstractTask {
 
   }
 
+  @Override
   public String getTaskDescription() {
     return "Opening file " + file;
   }
@@ -215,28 +213,32 @@ public class NativeFileReadTask extends AbstractTask {
       }
 
       if (line.startsWith("POLARITY: ")) {
-        if (line.contains("-"))
+        if (line.contains("-")) {
           polarity = PolarityType.NEGATIVE;
-        else if (line.contains("+"))
+        } else if (line.contains("+")) {
           polarity = PolarityType.POSITIVE;
-        else
+        } else {
           polarity = PolarityType.UNKNOWN;
+        }
 
-        // For Thermo RAW files, the polarity is sometimes not recognized.
-        // In such case, we can parse it from the scan filter line (scanId).
+        // For Thermo RAW files, the polarity is sometimes not
+        // recognized.
+        // In such case, we can parse it from the scan filter line
+        // (scanId).
         if ((polarity == PolarityType.UNKNOWN) && (fileType == RawDataFileType.THERMO_RAW)
             && (!Strings.isNullOrEmpty(scanId))) {
-          if (scanId.startsWith("-"))
+          if (scanId.startsWith("-")) {
             polarity = PolarityType.NEGATIVE;
-          else if (scanId.startsWith("+"))
+          } else if (scanId.startsWith("+")) {
             polarity = PolarityType.POSITIVE;
+          }
         }
 
       }
 
       if (line.startsWith("RETENTION TIME: ")) {
         // Retention time is reported in minutes.
-        retentionTime = Double.parseDouble(line.substring("RETENTION TIME: ".length()));
+        retentionTime = (float) Double.parseDouble(line.substring("RETENTION TIME: ".length()));
       }
 
       if (line.startsWith("PRECURSOR: ")) {
@@ -271,27 +273,31 @@ public class NativeFileReadTask extends AbstractTask {
       if (line.startsWith("MASS VALUES: ")) {
         Pattern p = Pattern.compile("MASS VALUES: (\\d+) x (\\d+) BYTES");
         Matcher m = p.matcher(line);
-        if (!m.matches())
+        if (!m.matches()) {
           throw new IOException("Could not parse line " + line);
+        }
         numOfDataPoints = Integer.parseInt(m.group(1));
         final int byteSize = Integer.parseInt(m.group(2));
 
         final int numOfBytes = numOfDataPoints * byteSize;
-        if (byteBuffer.length < numOfBytes)
+        if (byteBuffer.length < numOfBytes) {
           byteBuffer = new byte[numOfBytes * 2];
+        }
         dumpStream.read(byteBuffer, 0, numOfBytes);
 
         ByteBuffer mzByteBuffer =
             ByteBuffer.wrap(byteBuffer, 0, numOfBytes).order(ByteOrder.LITTLE_ENDIAN);
-        if (mzValuesBuffer.length < numOfDataPoints)
+        if (mzValuesBuffer.length < numOfDataPoints) {
           mzValuesBuffer = new double[numOfDataPoints * 2];
+        }
 
         for (int i = 0; i < numOfDataPoints; i++) {
           double newValue;
-          if (byteSize == 8)
+          if (byteSize == 8) {
             newValue = mzByteBuffer.getDouble();
-          else
+          } else {
             newValue = mzByteBuffer.getFloat();
+          }
           mzValuesBuffer[i] = newValue;
         }
 
@@ -300,8 +306,9 @@ public class NativeFileReadTask extends AbstractTask {
       if (line.startsWith("INTENSITY VALUES: ")) {
         Pattern p = Pattern.compile("INTENSITY VALUES: (\\d+) x (\\d+) BYTES");
         Matcher m = p.matcher(line);
-        if (!m.matches())
+        if (!m.matches()) {
           throw new IOException("Could not parse line " + line);
+        }
         // numOfDataPoints must be same for MASS VALUES and INTENSITY
         // VALUES
         if (numOfDataPoints != Integer.parseInt(m.group(1))) {
@@ -311,36 +318,41 @@ public class NativeFileReadTask extends AbstractTask {
         final int byteSize = Integer.parseInt(m.group(2));
 
         final int numOfBytes = numOfDataPoints * byteSize;
-        if (byteBuffer.length < numOfBytes)
+        if (byteBuffer.length < numOfBytes) {
           byteBuffer = new byte[numOfBytes * 2];
+        }
         dumpStream.read(byteBuffer, 0, numOfBytes);
 
         ByteBuffer intensityByteBuffer =
             ByteBuffer.wrap(byteBuffer, 0, numOfBytes).order(ByteOrder.LITTLE_ENDIAN);
-        if (intensityValuesBuffer.length < numOfDataPoints)
+        if (intensityValuesBuffer.length < numOfDataPoints) {
           intensityValuesBuffer = new double[numOfDataPoints * 2];
+        }
         for (int i = 0; i < numOfDataPoints; i++) {
           double newValue;
-          if (byteSize == 8)
+          if (byteSize == 8) {
             newValue = intensityByteBuffer.getDouble();
-          else
+          } else {
             newValue = intensityByteBuffer.getFloat();
+          }
           intensityValuesBuffer[i] = newValue;
         }
 
         // INTENSITY VALUES was the last item of the scan, so now we can
         // convert the data to DataPoint[] array and create a new scan
 
-        DataPoint dataPoints[] = new DataPoint[numOfDataPoints];
-        for (int i = 0; i < numOfDataPoints; i++) {
-          dataPoints[i] = new SimpleDataPoint(mzValuesBuffer[i], intensityValuesBuffer[i]);
-        }
+        double mzValues[] = new double[numOfDataPoints];
+        double intensityValues[] = new double[numOfDataPoints];
+        System.arraycopy(mzValuesBuffer, 0, mzValues, 0, numOfDataPoints);
+        System.arraycopy(intensityValuesBuffer, 0, intensityValues, 0, numOfDataPoints);
+
 
         // Auto-detect whether this scan is centroided
-        MassSpectrumType spectrumType = ScanUtils.detectSpectrumType(dataPoints);
+        MassSpectrumType spectrumType = ScanUtils.detectSpectrumType(mzValues, intensityValues);
 
-        SimpleScan newScan = new SimpleScan(null, scanNumber, msLevel, retentionTime, precursorMZ,
-            precursorCharge, null, dataPoints, spectrumType, polarity, scanId, mzRange);
+        SimpleScan newScan = new SimpleScan(newMZmineFile, scanNumber, msLevel, retentionTime,
+            precursorMZ, precursorCharge, mzValues, intensityValues, spectrumType, polarity, scanId,
+            mzRange);
         newMZmineFile.addScan(newScan);
 
         parsedScans++;
@@ -355,6 +367,7 @@ public class NativeFileReadTask extends AbstractTask {
         precursorMZ = 0;
         precursorCharge = 0;
         numOfDataPoints = 0;
+        mobility = 0;
 
       }
 

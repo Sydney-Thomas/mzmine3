@@ -1,17 +1,17 @@
 /*
- * Copyright 2006-2018 The MZmine 2 Development Team
+ * Copyright 2006-2020 The MZmine Development Team
  * 
- * This file is part of MZmine 2.
+ * This file is part of MZmine.
  * 
- * MZmine 2 is free software; you can redistribute it and/or modify it under the terms of the GNU
+ * MZmine is free software; you can redistribute it and/or modify it under the terms of the GNU
  * General Public License as published by the Free Software Foundation; either version 2 of the
  * License, or (at your option) any later version.
  * 
- * MZmine 2 is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
- * even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
+ * MZmine is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+ * the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
+ * Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with MZmine 2; if not,
+ * You should have received a copy of the GNU General Public License along with MZmine; if not,
  * write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301
  * USA
  */
@@ -20,8 +20,13 @@ package io.github.mzmine.modules.visualization.twod;
 
 import java.awt.Color;
 import java.awt.Graphics2D;
+import java.awt.geom.Ellipse2D;
+import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.Iterator;
+import java.util.List;
 
 import org.jfree.chart.axis.ValueAxis;
 import org.jfree.chart.plot.CrosshairState;
@@ -31,20 +36,13 @@ import com.google.common.collect.Range;
 
 import io.github.mzmine.datamodel.DataPoint;
 
-import java.awt.geom.Ellipse2D;
-import java.awt.geom.Point2D;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-
-
 /**
  * This class is responsible for drawing the actual data points. modified by Owen Myers 2017
  */
 class PointTwoDXYPlot extends BaseXYPlot {
+  boolean datasetChanged = false;
 
-
-  PointTwoDXYPlot(TwoDDataSet dataset, Range<Double> rtRange, Range<Double> mzRange,
+  PointTwoDXYPlot(TwoDDataSet dataset, Range<Float> rtRange, Range<Double> mzRange,
       ValueAxis domainAxis, ValueAxis rangeAxis) {
 
     super(dataset, rtRange, mzRange, domainAxis, rangeAxis);
@@ -76,8 +74,10 @@ class PointTwoDXYPlot extends BaseXYPlot {
     final double imageMZMax = (double) getRangeAxis().getRange().getUpperBound();
     final double imageMZStep = (imageMZMax - imageMZMin) / height;
 
-    // This if statement below keeps the min max values at the original values when the user
-    // zooms in. We need some variables that scall as the box size so that the points we show
+    // This if statement below keeps the min max values at the original
+    // values when the user
+    // zooms in. We need some variables that scall as the box size so that
+    // the points we show
     // have better resolution the more someone zooms in.
 
     double dynamicImageRTMin = imageRTMin;
@@ -91,15 +91,14 @@ class PointTwoDXYPlot extends BaseXYPlot {
         && (imageRTMax == totalRTRange.upperEndpoint())
         && (imageMZMin == totalMZRange.lowerEndpoint())
         && (imageMZMax == totalMZRange.upperEndpoint()) && (zoomOutBitmap.getWidth() == width)
-        && (zoomOutBitmap.getHeight() == height)) {
+        && (zoomOutBitmap.getHeight() == height)
+        && (!datasetChanged)) {
       g2.drawImage(zoomOutBitmap, x, y, null);
       return true;
     }
 
-
     // Save current time
     Date renderStartTime = new Date();
-
 
     // prepare a bitmap of required size
     // BufferedImage image = new BufferedImage(width, height,
@@ -108,11 +107,11 @@ class PointTwoDXYPlot extends BaseXYPlot {
     // ArrayList<DataPoint> listOfDataPoints = new ArrayList<DataPoint>();
     // ArrayList<DataPoint> listOfRTValues = new ArrayList<DataPoint>();
     ArrayList<DataPoint> listOfDataPoints;
-    ArrayList<Double> listOfRTValues;
+    ArrayList<Float> listOfRTValues;
 
     // These two function must be run in this order
-    Range<Double> rtRangeIn = Range.closed(getDomainAxis().getRange().getLowerBound(),
-        getDomainAxis().getRange().getUpperBound());
+    Range<Float> rtRangeIn = Range.closed((float) getDomainAxis().getRange().getLowerBound(),
+        (float) getDomainAxis().getRange().getUpperBound());
     Range<Double> mzRangeIn = Range.closed(getRangeAxis().getRange().getLowerBound(),
         getRangeAxis().getRange().getUpperBound());
     listOfDataPoints = dataset.getCentroidedDataPointsInRTMZRange(rtRangeIn, mzRangeIn);
@@ -123,7 +122,8 @@ class PointTwoDXYPlot extends BaseXYPlot {
 
     int count = 0;
 
-    // Store the current mz,rt,int values so that they can be outputed to a file if we want
+    // Store the current mz,rt,int values so that they can be outputed to a
+    // file if we want
     // currentlyPlottedMZ = new ArrayList();
 
     // for (Iterator dpIt = listOfDataPoints.iterator(); dpIt.hasNext();) {
@@ -142,7 +142,6 @@ class PointTwoDXYPlot extends BaseXYPlot {
       // currentlyPlottedMZ.add()
     }
 
-
     // draw image points
     // for (int i = 0; i < width; i++)
     // for (int j = 0; j < height; j++) {
@@ -153,10 +152,13 @@ class PointTwoDXYPlot extends BaseXYPlot {
     count = 0;
     for (Iterator i = plotPoints.iterator(); i.hasNext();) {
       Point2D.Double pt = (Point2D.Double) i.next();
-      // using the ''dynamic'' min and max will make the resolution imporve as someone zooms
+      // using the ''dynamic'' min and max will make the resolution
+      // imporve as someone zooms
       // in
-      // float xPlace = (pt.x-(float)dynamicImageRTMin)/((float)dynamicImageRTStep) + x;
-      // float yPlace = (pt.y-(float)dynamicImageMZMin)/((float)dynamicImageMZStep) + y;
+      // float xPlace =
+      // (pt.x-(float)dynamicImageRTMin)/((float)dynamicImageRTStep) + x;
+      // float yPlace =
+      // (pt.y-(float)dynamicImageMZMin)/((float)dynamicImageMZStep) + y;
       double xPlace = (pt.x - dynamicImageRTMin) / (dynamicImageRTStep) + (double) x;
       double yPlace =
           (double) height - (pt.y - dynamicImageMZMin) / (dynamicImageMZStep) + (double) y;
@@ -176,7 +178,8 @@ class PointTwoDXYPlot extends BaseXYPlot {
       count += 1;
     }
 
-    // float xPlace = ((float)42.0-(float)dynamicImageRTMin)/((float)dynamicImageRTStep)+x;
+    // float xPlace =
+    // ((float)42.0-(float)dynamicImageRTMin)/((float)dynamicImageRTStep)+x;
     // float yPlace = (float)height -
     // ((float)201.02-(float)dynamicImageMZMin)/((float)dynamicImageMZStep)+y;
     // Ellipse2D dot = new Ellipse2D.Float(xPlace - 1, yPlace - 1, 2, 2);
@@ -196,14 +199,20 @@ class PointTwoDXYPlot extends BaseXYPlot {
 
     // g.setColor(Color.BLACK)
 
+    // Set datasetChanged to false until setDataset is not called
+    datasetChanged = false;
+
     Date renderFinishTime = new Date();
 
     logger.finest("Finished rendering 2D visualizer, "
         + (renderFinishTime.getTime() - renderStartTime.getTime()) + " ms");
 
-
-
     return true;
 
+  }
+
+  public void setDataset(TwoDDataSet dataset) {
+    super.setDataset(dataset);
+    datasetChanged = true;
   }
 }

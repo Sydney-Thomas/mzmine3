@@ -1,23 +1,24 @@
 /*
- * Copyright 2006-2018 The MZmine 2 Development Team
+ * Copyright 2006-2020 The MZmine Development Team
  * 
- * This file is part of MZmine 2.
+ * This file is part of MZmine.
  * 
- * MZmine 2 is free software; you can redistribute it and/or modify it under the terms of the GNU
+ * MZmine is free software; you can redistribute it and/or modify it under the terms of the GNU
  * General Public License as published by the Free Software Foundation; either version 2 of the
  * License, or (at your option) any later version.
  * 
- * MZmine 2 is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
- * even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
+ * MZmine is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+ * the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
+ * Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with MZmine 2; if not,
+ * You should have received a copy of the GNU General Public License along with MZmine; if not,
  * write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301
  * USA
  */
 
 package io.github.mzmine.modules.dataprocessing.id_isotopepeakscanner;
 
+import io.github.mzmine.datamodel.features.FeatureListRow;
 import java.util.Arrays;
 import java.util.logging.Logger;
 import com.google.common.collect.Range;
@@ -25,7 +26,6 @@ import io.github.msdk.MSDKRuntimeException;
 import io.github.mzmine.datamodel.DataPoint;
 import io.github.mzmine.datamodel.IsotopePattern;
 import io.github.mzmine.datamodel.MassList;
-import io.github.mzmine.datamodel.PeakListRow;
 import io.github.mzmine.datamodel.RawDataFile;
 import io.github.mzmine.datamodel.Scan;
 import io.github.mzmine.datamodel.impl.SimpleDataPoint;
@@ -54,7 +54,6 @@ public class Candidates {
   RatingType ratingType;
   PeakListHandler plh;
 
-
   public Candidates(int size, double minHeight, MZTolerance mzTolerance, IsotopePattern pattern,
       String massListName, PeakListHandler plh, RatingType ratingType) {
     this.candidate = new Candidate[size];
@@ -69,9 +68,9 @@ public class Candidates {
     this.pattern = pattern;
     this.plh = plh;
     this.ratingType = ratingType;
-    
-    for(Candidate c : candidate)
-      if(c == null)
+
+    for (Candidate c : candidate)
+      if (c == null)
         logger.info("failed to initialize candidate");
   }
 
@@ -140,18 +139,17 @@ public class Candidates {
 
     return buffer / avgRating.length;
   }
-  
+
   public double getSimpleAvgRating() {
     if (pattern == null) // if we run a neutral loss scan this doesn't exist
       return -1.0;
-    
-    double buffer = 0.0;
-    for(int i = 0; i < candidate.length; i++) 
-      buffer += candidate[i].getRating();
-    
-    return buffer/candidate.length;
-  }
 
+    double buffer = 0.0;
+    for (int i = 0; i < candidate.length; i++)
+      buffer += candidate[i].getRating();
+
+    return buffer / candidate.length;
+  }
 
   public int size() {
     return candidate.length;
@@ -206,7 +204,7 @@ public class Candidates {
    * @param checkIntensity
    * @return true if better, false if worse
    */
-  public boolean checkForBetterRating(int index, PeakListRow parent, PeakListRow cand,
+  public boolean checkForBetterRating(int index, FeatureListRow parent, FeatureListRow cand,
       double minRating, boolean checkIntensity) {
     if (ratingType == RatingType.HIGHEST)
       return candidate[index].checkForBetterRating(parent, cand, pattern, index, minRating,
@@ -280,9 +278,9 @@ public class Candidates {
    * @return avPeakHeight
    */
   private double calcAvgPeakHeight(int ID) {
-    PeakListRow row = plh.getRowByID(ID);
+    FeatureListRow row = plh.getRowByID(ID);
 
-    RawDataFile[] raws = row.getRawDataFiles();
+    RawDataFile[] raws = row.getRawDataFiles().toArray(new RawDataFile[0]);
 
     if (raws.length < 1)
       return 0.0;
@@ -332,9 +330,9 @@ public class Candidates {
    *         lists
    */
   private double[] getAvgPeakHeights(int[] ID) {
-    PeakListRow[] rows = plh.getRowsByID(ID);
+    FeatureListRow[] rows = plh.getRowsByID(ID);
 
-    RawDataFile[] raws = rows[0].getRawDataFiles();
+    RawDataFile[] raws = rows[0].getRawDataFiles().toArray(new RawDataFile[0]);
 
     if (raws.length < 1)
       return null;
@@ -374,9 +372,11 @@ public class Candidates {
 
           DataPoint dp = getClosestDataPoint(points, rows[j].getAverageMZ(), minHeight);
 
-          if (dp == null) // yes the list contained something close to every datapoint that was over
+          if (dp == null) // yes the list contained something close to
+                          // every datapoint that was over
                           // minHeight, BUT
-          { // the closest might not have been. Check is done inside getClosestDataPoint();
+          { // the closest might not have been. Check is done inside
+            // getClosestDataPoint();
             allFound = false;
             break;
           }
@@ -391,9 +391,9 @@ public class Candidates {
       }
     }
 
-
     if (pointsAdded == 0) {
-      logger.warning("Error: Peaks with ids: " + Arrays.toString(ID) + " were not in same scans at all. Please update the parameters.");
+      logger.warning("Error: Peaks with ids: " + Arrays.toString(ID)
+          + " were not in same scans at all. Please update the parameters.");
       return null;
     }
     for (int i = 0; i < avgHeights.length; i++)
@@ -421,7 +421,8 @@ public class Candidates {
         n = p;
 
     if (n.getIntensity() == 0.0) {
-      // System.out.println("Info: Closest data point not above min intensity. m/z: " + mz);
+      // System.out.println("Info: Closest data point not above min
+      // intensity. m/z: " + mz);
       return null;
     }
     return n;
@@ -454,7 +455,8 @@ public class Candidates {
       }
 
       if (!aboveMinHeight) {
-        // System.out.println("Info: Mass list " + list.getName() + " does not contain every mz: " +
+        // System.out.println("Info: Mass list " + list.getName() + "
+        // does not contain every mz: " +
         // mz.toString());
         return false;
       }

@@ -1,17 +1,17 @@
 /*
- * Copyright 2006-2018 The MZmine 2 Development Team
- * 
- * This file is part of MZmine 2.
- * 
- * MZmine 2 is free software; you can redistribute it and/or modify it under the terms of the GNU
+ * Copyright 2006-2020 The MZmine Development Team
+ *
+ * This file is part of MZmine.
+ *
+ * MZmine is free software; you can redistribute it and/or modify it under the terms of the GNU
  * General Public License as published by the Free Software Foundation; either version 2 of the
  * License, or (at your option) any later version.
- * 
- * MZmine 2 is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
- * even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- * 
- * You should have received a copy of the GNU General Public License along with MZmine 2; if not,
+ *
+ * MZmine is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+ * the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
+ * Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with MZmine; if not,
  * write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301
  * USA
  */
@@ -23,15 +23,11 @@ import java.io.IOException;
 import java.util.Hashtable;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import io.github.mzmine.datamodel.DataPoint;
 import io.github.mzmine.datamodel.MZmineProject;
 import io.github.mzmine.datamodel.MassSpectrumType;
 import io.github.mzmine.datamodel.PolarityType;
 import io.github.mzmine.datamodel.RawDataFile;
-import io.github.mzmine.datamodel.RawDataFileWriter;
 import io.github.mzmine.datamodel.Scan;
-import io.github.mzmine.datamodel.impl.SimpleDataPoint;
 import io.github.mzmine.datamodel.impl.SimpleScan;
 import io.github.mzmine.taskcontrol.AbstractTask;
 import io.github.mzmine.taskcontrol.TaskStatus;
@@ -45,7 +41,7 @@ import ucar.nc2.NetcdfFile;
 import ucar.nc2.Variable;
 
 /**
- * 
+ *
  */
 public class NetCDFReadTask extends AbstractTask {
 
@@ -61,8 +57,7 @@ public class NetCDFReadTask extends AbstractTask {
 
   private File file;
   private MZmineProject project;
-  private RawDataFileWriter newMZmineFile;
-  private RawDataFile finalRawDataFile;
+  private RawDataFile newMZmineFile;
 
   private Variable massValueVariable, intensityValueVariable;
 
@@ -70,7 +65,7 @@ public class NetCDFReadTask extends AbstractTask {
   private double massValueScaleFactor = 1;
   private double intensityValueScaleFactor = 1;
 
-  public NetCDFReadTask(MZmineProject project, File fileToOpen, RawDataFileWriter newMZmineFile) {
+  public NetCDFReadTask(MZmineProject project, File fileToOpen, RawDataFile newMZmineFile) {
     this.project = project;
     this.file = fileToOpen;
     this.newMZmineFile = newMZmineFile;
@@ -79,6 +74,7 @@ public class NetCDFReadTask extends AbstractTask {
   /**
    * @see io.github.mzmine.taskcontrol.Task#getFinishedPercentage()
    */
+  @Override
   public double getFinishedPercentage() {
     return totalScans == 0 ? 0 : (double) parsedScans / totalScans;
   }
@@ -86,6 +82,7 @@ public class NetCDFReadTask extends AbstractTask {
   /**
    * @see java.lang.Runnable#run()
    */
+  @Override
   public void run() {
 
     // Update task status
@@ -113,8 +110,7 @@ public class NetCDFReadTask extends AbstractTask {
 
       // Close file
       this.finishReading();
-      finalRawDataFile = newMZmineFile.finishWriting();
-      project.addFile(finalRawDataFile);
+      project.addFile(newMZmineFile);
 
     } catch (Throwable e) {
       logger.log(Level.SEVERE, "Could not open file " + file.getPath(), e);
@@ -130,6 +126,7 @@ public class NetCDFReadTask extends AbstractTask {
 
   }
 
+  @Override
   public String getTaskDescription() {
     return "Opening file " + file;
   }
@@ -270,14 +267,14 @@ public class NetCDFReadTask extends AbstractTask {
           // Yes, find next present scan
           for (int j = i + 1; j < totalScans; j++) {
             if (scanStartPositions[j] >= 0) {
-              sumDelta += (retentionTimes[j] - retentionTimes[i]) / ((double) (j - i));
+              sumDelta += (retentionTimes[j] - retentionTimes[i]) / (j - i);
               n++;
               break;
             }
           }
         }
       }
-      double avgDelta = sumDelta / (double) n;
+      double avgDelta = sumDelta / n;
       // - fill missing scan times using nearest good scan and avgDelta
       for (int i = 0; i < totalScans; i++) {
         // Is this a missing scan?
@@ -354,9 +351,6 @@ public class NetCDFReadTask extends AbstractTask {
 
   }
 
-  /**
-   * @see net.sf.mzmine.io.RawDataFileReader#finishReading()
-   */
   public void finishReading() throws IOException {
     inputFile.close();
   }
@@ -379,7 +373,7 @@ public class NetCDFReadTask extends AbstractTask {
     scanLength[0] = startAndLength[1];
 
     // Get retention time of the scan
-    Double retentionTime = scansRetentionTimes.get(scanNum);
+    Float retentionTime = scansRetentionTimes.get(scanNum).floatValue();
     if (retentionTime == null) {
       logger.severe("Could not find retention time for scan " + scanNum);
       throw (new IOException("Could not find retention time for scan " + scanNum));
@@ -388,8 +382,9 @@ public class NetCDFReadTask extends AbstractTask {
     // An empty scan needs special attention..
     if (scanLength[0] == 0) {
       scanNum++;
-      return new SimpleScan(null, scanNum, 1, retentionTime.doubleValue(), 0, 0, null,
-          new DataPoint[0], MassSpectrumType.CENTROIDED, PolarityType.UNKNOWN, "", null);
+
+      return new SimpleScan(newMZmineFile, scanNum, 1, retentionTime, 0, 0, new double[0],
+          new double[0], MassSpectrumType.CENTROIDED, PolarityType.UNKNOWN, "", null);
     }
 
     // Is there any way how to extract polarity from netcdf?
@@ -415,7 +410,8 @@ public class NetCDFReadTask extends AbstractTask {
 
     int arrayLength = massValueArray.getShape()[0];
 
-    DataPoint dataPoints[] = new DataPoint[arrayLength];
+    double mzValues[] = new double[arrayLength];
+    double intensityValues[] = new double[arrayLength];
 
     for (int j = 0; j < arrayLength; j++) {
       Index massIndex0 = massValuesIndex.set0(j);
@@ -423,17 +419,18 @@ public class NetCDFReadTask extends AbstractTask {
 
       double mz = massValueArray.getDouble(massIndex0) * massValueScaleFactor;
       double intensity = intensityValueArray.getDouble(intensityIndex0) * intensityValueScaleFactor;
-      dataPoints[j] = new SimpleDataPoint(mz, intensity);
+      mzValues[j] = mz;
+      intensityValues[j] = intensity;
 
     }
 
     scanNum++;
 
     // Auto-detect whether this scan is centroided
-    MassSpectrumType spectrumType = ScanUtils.detectSpectrumType(dataPoints);
+    MassSpectrumType spectrumType = ScanUtils.detectSpectrumType(mzValues, intensityValues);
 
-    SimpleScan buildingScan = new SimpleScan(null, scanNum, 1, retentionTime.doubleValue(), 0, 0,
-        null, dataPoints, spectrumType, polarity, scanDefinition, null);
+    SimpleScan buildingScan = new SimpleScan(newMZmineFile, scanNum, 1, retentionTime, 0, 0,
+        mzValues, intensityValues, spectrumType, polarity, scanDefinition, null);
 
     return buildingScan;
 

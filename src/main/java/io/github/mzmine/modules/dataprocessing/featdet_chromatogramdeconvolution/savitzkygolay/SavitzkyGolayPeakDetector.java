@@ -1,17 +1,17 @@
 /*
- * Copyright 2006-2018 The MZmine 2 Development Team
+ * Copyright 2006-2020 The MZmine Development Team
  * 
- * This file is part of MZmine 2.
+ * This file is part of MZmine.
  * 
- * MZmine 2 is free software; you can redistribute it and/or modify it under the terms of the GNU
+ * MZmine is free software; you can redistribute it and/or modify it under the terms of the GNU
  * General Public License as published by the Free Software Foundation; either version 2 of the
  * License, or (at your option) any later version.
  * 
- * MZmine 2 is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
- * even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
+ * MZmine is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+ * the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
+ * Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with MZmine 2; if not,
+ * You should have received a copy of the GNU General Public License along with MZmine; if not,
  * write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301
  * USA
  */
@@ -22,6 +22,7 @@ import static io.github.mzmine.modules.dataprocessing.featdet_chromatogramdeconv
 import static io.github.mzmine.modules.dataprocessing.featdet_chromatogramdeconvolution.savitzkygolay.SavitzkyGolayPeakDetectorParameters.MIN_PEAK_HEIGHT;
 import static io.github.mzmine.modules.dataprocessing.featdet_chromatogramdeconvolution.savitzkygolay.SavitzkyGolayPeakDetectorParameters.PEAK_DURATION;
 
+import io.github.mzmine.datamodel.features.Feature;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -29,7 +30,6 @@ import javax.annotation.Nonnull;
 import com.google.common.collect.Range;
 
 import io.github.mzmine.datamodel.DataPoint;
-import io.github.mzmine.datamodel.Feature;
 import io.github.mzmine.datamodel.RawDataFile;
 import io.github.mzmine.modules.dataprocessing.featdet_chromatogramdeconvolution.PeakResolver;
 import io.github.mzmine.modules.dataprocessing.featdet_chromatogramdeconvolution.ResolvedPeak;
@@ -59,13 +59,13 @@ public class SavitzkyGolayPeakDetector implements PeakResolver {
   @Override
   public ResolvedPeak[] resolvePeaks(final Feature chromatogram, ParameterSet parameters,
       RSessionWrapper rSession, CenterFunction mzCenterFunction, double msmsRange,
-      double rTRangeMSMS) {
+      float rTRangeMSMS) {
 
-    int scanNumbers[] = chromatogram.getScanNumbers();
+    int scanNumbers[] = chromatogram.getScanNumbers().stream().mapToInt(i -> i).toArray();
     final int scanCount = scanNumbers.length;
     double retentionTimes[] = new double[scanCount];
     double intensities[] = new double[scanCount];
-    RawDataFile dataFile = chromatogram.getDataFile();
+    RawDataFile dataFile = chromatogram.getRawDataFile();
     for (int i = 0; i < scanCount; i++) {
       final int scanNum = scanNumbers[i];
       retentionTimes[i] = dataFile.getScan(scanNum).getRetentionTime();
@@ -87,7 +87,7 @@ public class SavitzkyGolayPeakDetector implements PeakResolver {
 
     avgIntensity /= scanCount;
 
-    final List<Feature> resolvedPeaks = new ArrayList<Feature>(2);
+    final List<ResolvedPeak> resolvedPeaks = new ArrayList<ResolvedPeak>(2);
 
     // If the current chromatogram has characteristics of background or just
     // noise return an empty array.
@@ -103,7 +103,7 @@ public class SavitzkyGolayPeakDetector implements PeakResolver {
 
       // Search for peaks.
       Arrays.sort(scanNumbers);
-      final Feature[] resolvedOriginalPeaks = peaksSearch(chromatogram, scanNumbers,
+      final ResolvedPeak[] resolvedOriginalPeaks = peaksSearch(chromatogram, scanNumbers,
           secondDerivative, noiseThreshold, mzCenterFunction, msmsRange, rTRangeMSMS);
 
       final Range<Double> peakDuration = parameters.getParameter(PEAK_DURATION).getValue();
@@ -111,9 +111,9 @@ public class SavitzkyGolayPeakDetector implements PeakResolver {
 
       // Apply final filter of detected peaks, according with setup
       // parameters.
-      for (final Feature p : resolvedOriginalPeaks) {
+      for (final ResolvedPeak p : resolvedOriginalPeaks) {
 
-        if (peakDuration.contains(RangeUtils.rangeLength(p.getRawDataPointsRTRange()))
+        if (peakDuration.contains(RangeUtils.rangeLength(p.getRawDataPointsRTRange()).doubleValue())
             && p.getHeight() >= minimumPeakHeight) {
 
           resolvedPeaks.add(p);
@@ -133,7 +133,7 @@ public class SavitzkyGolayPeakDetector implements PeakResolver {
    * @param noiseThreshold noise threshold.
    * @return array of peaks found.
    */
-  private static Feature[] peaksSearch(final Feature chromatogram, final int[] scanNumbers,
+  private static ResolvedPeak[] peaksSearch(final Feature chromatogram, final int[] scanNumbers,
       final double[] derivativeOfIntensities, final double noiseThreshold,
       CenterFunction mzCenterFunction, final double msmsRange, final double rTRangeMSMS) {
 
@@ -157,7 +157,7 @@ public class SavitzkyGolayPeakDetector implements PeakResolver {
     int nextPeakStart = totalNumberPoints;
     int currentPeakEnd = 0;
 
-    final List<Feature> resolvedPeaks = new ArrayList<Feature>(2);
+    final List<ResolvedPeak> resolvedPeaks = new ArrayList<ResolvedPeak>(2);
 
     // Shape analysis of derivative of chromatogram "*" represents the
     // original chromatogram shape. "-" represents
@@ -263,8 +263,8 @@ public class SavitzkyGolayPeakDetector implements PeakResolver {
       // the chromatogram.
       if (currentPeakEnd - currentPeakStart > 0 && !activeFirstPeak) {
 
-        resolvedPeaks.add(new ResolvedPeak(chromatogram, currentPeakStart, currentPeakEnd,
-            mzCenterFunction, msmsRange, rTRangeMSMS));
+        resolvedPeaks.add(new ResolvedPeak(chromatogram, currentPeakStart, currentPeakEnd, mzCenterFunction,
+            msmsRange, (float) rTRangeMSMS));
 
         // If exists next overlapped peak, swap the indexes between next
         // and current, and clean ending index
@@ -288,7 +288,7 @@ public class SavitzkyGolayPeakDetector implements PeakResolver {
       }
     }
 
-    return resolvedPeaks.toArray(new Feature[resolvedPeaks.size()]);
+    return resolvedPeaks.toArray(new ResolvedPeak[resolvedPeaks.size()]);
   }
 
   /**

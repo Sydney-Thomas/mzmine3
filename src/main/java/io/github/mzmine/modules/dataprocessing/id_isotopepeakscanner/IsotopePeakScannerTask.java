@@ -1,17 +1,17 @@
 /*
- * Copyright 2006-2018 The MZmine 2 Development Team
- * 
- * This file is part of MZmine 2.
- * 
- * MZmine 2 is free software; you can redistribute it and/or modify it under the terms of the GNU
+ * Copyright 2006-2020 The MZmine Development Team
+ *
+ * This file is part of MZmine.
+ *
+ * MZmine is free software; you can redistribute it and/or modify it under the terms of the GNU
  * General Public License as published by the Free Software Foundation; either version 2 of the
  * License, or (at your option) any later version.
- * 
- * MZmine 2 is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
- * even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- * 
- * You should have received a copy of the GNU General Public License along with MZmine 2; if not,
+ *
+ * MZmine is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+ * the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
+ * Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with MZmine; if not,
  * write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301
  * USA
  */
@@ -29,26 +29,20 @@ import javax.annotation.Nullable;
 import org.openscience.cdk.interfaces.IIsotope;
 import io.github.msdk.MSDKRuntimeException;
 import io.github.mzmine.datamodel.DataPoint;
-import io.github.mzmine.datamodel.Feature;
 import io.github.mzmine.datamodel.IsotopePattern;
+import io.github.mzmine.datamodel.IsotopePattern.IsotopePatternStatus;
 import io.github.mzmine.datamodel.MZmineProject;
 import io.github.mzmine.datamodel.MassList;
-import io.github.mzmine.datamodel.PeakList;
-import io.github.mzmine.datamodel.PeakListRow;
 import io.github.mzmine.datamodel.PolarityType;
 import io.github.mzmine.datamodel.RawDataFile;
-import io.github.mzmine.datamodel.IsotopePattern.IsotopePatternStatus;
-import io.github.mzmine.datamodel.PeakList.PeakListAppliedMethod;
-import io.github.mzmine.datamodel.impl.ExtendedIsotopePattern;
+import io.github.mzmine.datamodel.features.FeatureList;
+import io.github.mzmine.datamodel.features.FeatureList.FeatureListAppliedMethod;
+import io.github.mzmine.datamodel.features.FeatureListRow;
+import io.github.mzmine.datamodel.features.ModularFeatureList;
+import io.github.mzmine.datamodel.features.ModularFeatureListRow;
+import io.github.mzmine.datamodel.features.SimpleFeatureListAppliedMethod;
 import io.github.mzmine.datamodel.impl.SimpleDataPoint;
-import io.github.mzmine.datamodel.impl.SimpleFeature;
 import io.github.mzmine.datamodel.impl.SimpleIsotopePattern;
-import io.github.mzmine.datamodel.impl.SimplePeakList;
-import io.github.mzmine.datamodel.impl.SimplePeakListAppliedMethod;
-import io.github.mzmine.datamodel.impl.SimplePeakListRow;
-import io.github.mzmine.main.MZmineCore;
-import io.github.mzmine.modules.dataprocessing.id_isotopepeakscanner.IsotopePeakScannerTask.RatingType;
-import io.github.mzmine.modules.dataprocessing.id_isotopepeakscanner.IsotopePeakScannerTask.ScanType;
 import io.github.mzmine.modules.dataprocessing.id_isotopepeakscanner.autocarbon.AutoCarbonParameters;
 import io.github.mzmine.modules.tools.isotopeprediction.IsotopePatternCalculator;
 import io.github.mzmine.parameters.ParameterSet;
@@ -56,27 +50,25 @@ import io.github.mzmine.parameters.parametertypes.tolerances.MZTolerance;
 import io.github.mzmine.parameters.parametertypes.tolerances.RTTolerance;
 import io.github.mzmine.taskcontrol.AbstractTask;
 import io.github.mzmine.taskcontrol.TaskStatus;
+import io.github.mzmine.util.FeatureListRowSorter;
 import io.github.mzmine.util.FormulaUtils;
-import io.github.mzmine.util.PeakListRowSorter;
-import io.github.mzmine.util.PeakUtils;
 import io.github.mzmine.util.SortingDirection;
 import io.github.mzmine.util.SortingProperty;
 
-
 /**
- * This will scan a feature list for calculated isotope patterns. This class loops through every peak
- * and checks if there are peaks within a specified RT and m/z window. The m/z window is calculated
- * by the maximum mass shift caused by the isotope pattern. Every peak that fits the m/z window is
- * also checked for RT if specified => groupedPeaks. The next step checks for peaks inside the
- * specified m/z window around the expected isotope-pattern m/zs (current peak mass +
+ * This will scan a feature list for calculated isotope patterns. This class loops through every
+ * peak and checks if there are peaks within a specified RT and m/z window. The m/z window is
+ * calculated by the maximum mass shift caused by the isotope pattern. Every peak that fits the m/z
+ * window is also checked for RT if specified => groupedPeaks. The next step checks for peaks inside
+ * the specified m/z window around the expected isotope-pattern m/zs (current peak mass +
  * (isotope[i]-isotope[0])). Every peak that fits the criteria is added to resultBuffer.
  * Furthermore, every peak in the resultBuffer is rated by m/z and intensity, if the rating is
  * better that the previous one the peak will be added as a candidate (by Candidates.java). If the
- * algorithm was able to find a peak inside the feature list for every expected isotope peak the result
- * will be added to a result feature list including a description.
- * 
+ * algorithm was able to find a peak inside the feature list for every expected isotope peak the
+ * result will be added to a result feature list including a description.
+ *
  * @author Steffen Heuckeroth steffen.heuckeroth@gmx.de / s_heuc03@uni-muenster.de
- * 
+ *
  */
 public class IsotopePeakScannerTask extends AbstractTask {
 
@@ -92,11 +84,11 @@ public class IsotopePeakScannerTask extends AbstractTask {
   private double mergeWidth;
   private String message;
   private int totalRows, finishedRows;
-  private PeakList resultPeakList;
+  private ModularFeatureList resultPeakList;
   private MZmineProject project;
-  private PeakList peakList;
+  private FeatureList peakList;
   private boolean checkRT;
-  private ExtendedIsotopePattern[] pattern;
+  private SimpleIsotopePattern[] pattern;
   private PolarityType polarityType;
   private int charge;
   private boolean accurateAvgIntensity;
@@ -110,8 +102,6 @@ public class IsotopePeakScannerTask extends AbstractTask {
   private int autoCarbonMinPatternSize;
   private boolean excludeZeroCPattern;
 
-
-
   public enum RatingType {
     HIGHEST, TEMPAVG
   };
@@ -119,7 +109,6 @@ public class IsotopePeakScannerTask extends AbstractTask {
   public enum ScanType {
     SPECIFIC, AUTOCARBON
   };
-
 
   ScanType scanType;
 
@@ -131,10 +120,8 @@ public class IsotopePeakScannerTask extends AbstractTask {
    *
    * @param parameters
    * @param peakList
-   * @param peakListRow
-   * @param peak
    */
-  IsotopePeakScannerTask(MZmineProject project, PeakList peakList, ParameterSet parameters) {
+  IsotopePeakScannerTask(MZmineProject project, FeatureList peakList, ParameterSet parameters) {
     this.parameters = parameters;
     this.project = project;
     this.peakList = peakList;
@@ -184,8 +171,6 @@ public class IsotopePeakScannerTask extends AbstractTask {
     else
       ratingType = RatingType.HIGHEST;
 
-
-
     polarityType = (charge > 0) ? PolarityType.POSITIVE : PolarityType.NEGATIVE;
     charge = (charge < 0) ? charge * -1 : charge;
 
@@ -207,6 +192,7 @@ public class IsotopePeakScannerTask extends AbstractTask {
   /**
    * @see io.github.mzmine.taskcontrol.Task#getFinishedPercentage()
    */
+  @Override
   public double getFinishedPercentage() {
     if (totalRows == 0)
       return 0.0;
@@ -216,6 +202,7 @@ public class IsotopePeakScannerTask extends AbstractTask {
   /**
    * @see io.github.mzmine.taskcontrol.Task#getTaskDescription()
    */
+  @Override
   public String getTaskDescription() {
     return message;
   }
@@ -242,27 +229,29 @@ public class IsotopePeakScannerTask extends AbstractTask {
     logger.info("maxPatternSize: " + maxPatternSize);
 
     // get all rows and sort by m/z
-    PeakListRow[] rows = peakList.getRows();
-    Arrays.sort(rows, new PeakListRowSorter(SortingProperty.MZ, SortingDirection.Ascending));
+    FeatureListRow[] rows = peakList.getRows().toArray(FeatureListRow[]::new);
+    Arrays.sort(rows, new FeatureListRowSorter(SortingProperty.MZ, SortingDirection.Ascending));
 
     PeakListHandler plh = new PeakListHandler();
     plh.setUp(peakList);
 
-    resultPeakList = new SimplePeakList(peakList.getName() + suffix, peakList.getRawDataFiles());
+    resultPeakList =
+        new ModularFeatureList(peakList.getName() + suffix, peakList.getRawDataFiles());
     PeakListHandler resultMap = new PeakListHandler();
 
     for (int i = 0; i < totalRows; i++) {
       // i will represent the index of the row in peakList
-      if (rows[i].getPeakIdentities().length > 0) {
+      if (rows[i].getPeakIdentities().size() > 0) {
         finishedRows++;
         continue;
       }
 
       message = "Row " + i + "/" + totalRows;
 
-      // now get all peaks that lie within RT and maxIsotopeMassRange: pL[index].mz ->
+      // now get all peaks that lie within RT and maxIsotopeMassRange:
+      // pL[index].mz ->
       // pL[index].mz+maxMass
-      ArrayList<PeakListRow> groupedPeaks =
+      ArrayList<FeatureListRow> groupedPeaks =
           groupPeaks(rows, i, diff[maxPatternIndex][diff[maxPatternIndex].length - 1]);
 
       if (groupedPeaks.size() < 2) {
@@ -273,19 +262,29 @@ public class IsotopePeakScannerTask extends AbstractTask {
       // logger.info("groupedPeaks.size > 2 in row: " + i + " size: " +
       // groupedPeaks.size());
 
-      ResultBuffer[][] resultBuffer = new ResultBuffer[diff.length][]; // this will store row
+      ResultBuffer[][] resultBuffer = new ResultBuffer[diff.length][]; // this
+                                                                       // will
+                                                                       // store
+                                                                       // row
                                                                        // indexes
-      // TODO: it should be possible to use a single array of result buffer instead of a 2D array
-      // which should reduce computation time later on. the problem is that some carbon peaks
+      // TODO: it should be possible to use a single array of result
+      // buffer instead of a 2D array
+      // which should reduce computation time later on. the problem is
+      // that some carbon peaks
       // might pop up within
-      // the pattern and change indices. for testing purposes ill do it as it is
+      // the pattern and change indices. for testing purposes ill do it as
+      // it is
 
-      for (int p = 0; p < diff.length; p++) { // resultBuffer[i] index will represent Isotope[i] (if
+      for (int p = 0; p < diff.length; p++) { // resultBuffer[i] index
+                                              // will represent Isotope[i]
+                                              // (if
         // numAtoms = 0)
         resultBuffer[p] = new ResultBuffer[diff[p].length];
 
         for (int k = 0; k < diff[p].length; k++)
-          resultBuffer[p][k] = new ResultBuffer(); // [p][0] will be the isotope with lowest mass#
+          resultBuffer[p][k] = new ResultBuffer(); // [p][0] will be
+                                                   // the isotope with
+                                                   // lowest mass#
       }
 
       // of all features with fitting rt
@@ -293,24 +292,32 @@ public class IsotopePeakScannerTask extends AbstractTask {
       boolean trueBuffers[] = new boolean[diff.length];
       Arrays.fill(trueBuffers, false);
 
-      for (int j = 0; j < groupedPeaks.size(); j++) // go through all possible peaks
+      for (int j = 0; j < groupedPeaks.size(); j++) // go through all
+                                                    // possible peaks
       {
         for (int p = 0; p < diff.length; p++) {
 
-          for (int k = 0; k < diff[p].length; k++) // check for each peak if it is a possible
+          for (int k = 0; k < diff[p].length; k++) // check for each
+                                                   // peak if it is a
+                                                   // possible
                                                    // feature
           // for
           // every diff[](isotope)
-          { // this is necessary bc there might be more than one possible feature
+          { // this is necessary bc there might be more than one
+            // possible feature
             // j represents the row index in groupedPeaks
-            // k represents the isotope number the peak will be a candidate for
+            // k represents the isotope number the peak will be a
+            // candidate for
             // p = pattern index for autoCarbon
             if (mzTolerance.checkWithinTolerance(groupedPeaks.get(0).getAverageMZ() + diff[p][k],
                 groupedPeaks.get(j).getAverageMZ())) {
-              // this will automatically add groupedPeaks[0] to the list -> isotope with
+              // this will automatically add groupedPeaks[0] to
+              // the list -> isotope with
               // lowest mass
-              resultBuffer[p][k].addFound(); // +1 result for isotope k
-              resultBuffer[p][k].addRow(j); // row in groupedPeaks[]
+              resultBuffer[p][k].addFound(); // +1 result for
+                                             // isotope k
+              resultBuffer[p][k].addRow(j); // row in
+                                            // groupedPeaks[]
               resultBuffer[p][k].addID(groupedPeaks.get(j).getID());
             }
           }
@@ -320,7 +327,9 @@ public class IsotopePeakScannerTask extends AbstractTask {
       boolean foundOne = false;
 
       for (int p = 0; p < diff.length; p++)
-        if (checkIfAllTrue(resultBuffer[p])) { // this means that for every isotope we expected to
+        if (checkIfAllTrue(resultBuffer[p])) { // this means that for
+                                               // every isotope we
+                                               // expected to
                                                // find,
           foundOne = true; // we found one or more possible features
           trueBuffers[p] = true;
@@ -339,11 +348,14 @@ public class IsotopePeakScannerTask extends AbstractTask {
       for (int p = 0; p < diff.length; p++) {
         if (!trueBuffers[p])
           continue;
-        for (int k = 0; k < resultBuffer[p].length; k++) // reminder: resultBuffer.length =
+        for (int k = 0; k < resultBuffer[p].length; k++) // reminder:
+                                                         // resultBuffer.length
+                                                         // =
                                                          // diff.length
         {
           for (int l = 0; l < resultBuffer[p][k].getFoundCount(); l++) {
-            // k represents index resultBuffer[k] and thereby the isotope number
+            // k represents index resultBuffer[k] and thereby the
+            // isotope number
             // l represents the number of results in resultBuffer[k]
             candidates[p].checkForBetterRating(k, groupedPeaks.get(0),
                 groupedPeaks.get(resultBuffer[p][k].getRow(l)), minRating, checkIntensity);
@@ -360,17 +372,21 @@ public class IsotopePeakScannerTask extends AbstractTask {
         if (trueBuffers[p] && checkIfAllTrue(candidates[p].getCandidates())) {
           trueCandidates[p] = true;
           foundOne = true;
-          // logger.info("Row: " + i + " filled candidates[" + p + "]");
+          // logger.info("Row: " + i + " filled candidates[" + p +
+          // "]");
         }
       }
       if (!foundOne) {
         finishedRows++;
-        // logger.info("Not enough valid candidates for parent feature " +
-        // groupedPeaks.get(0).getAverageMZ() + "\talthough enough peaks were found.") ;
+        // logger.info("Not enough valid candidates for parent feature "
+        // +
+        // groupedPeaks.get(0).getAverageMZ() + "\talthough enough peaks
+        // were found.") ;
         continue; // jump to next i
       }
 
-      // find best result now, first we have to calc avg ratings if specified by user
+      // find best result now, first we have to calc avg ratings if
+      // specified by user
       int bestPatternIndex = 0;
       double bestRating = 0.0;
       for (int p = 0; p < diff.length; p++) {
@@ -398,32 +414,44 @@ public class IsotopePeakScannerTask extends AbstractTask {
         logger.warning(
             "We were about to add candidates with null pointers.\nThis was no valid result. Continueing.");
         continue;
-      } // TODO: this shouldnt be needed, fix the bug that causes the crash later on.
-        // this happens occasionally if the user wants to do accurate average but does not filter
-        // by RT. then possible isotope peaks are found, although they are not detected at the same
-        // time. This will result in the candidates return -1.0 which will sooner or later return a
-        // null pointer Fixing this will be done in a future update, but needs a rework of the
+      } // TODO: this shouldnt be needed, fix the bug that causes the
+        // crash later on.
+        // this happens occasionally if the user wants to do accurate
+        // average but does not filter
+        // by RT. then possible isotope peaks are found, although they are
+        // not detected at the same
+        // time. This will result in the candidates return -1.0 which will
+        // sooner or later return a
+        // null pointer Fixing this will be done in a future update, but
+        // needs a rework of the
         // candidates class.
-        // The results you miss by skipping here would have not been valid results anyway, so this
+        // The results you miss by skipping here would have not been valid
+        // results anyway, so this
         // is not urgent. Will be nicer though, because of cleaner code.
 
-//      PeakListRow parent = copyPeakRow(peakList.getRow(i));
-      
+      // PeakListRow parent = copyPeakRow(peakList.getRow(i));
+
       boolean allPeaksAddable = true;
-      List<PeakListRow> rowBuffer = new ArrayList<PeakListRow>();
-      
-      PeakListRow original = getRowFromCandidate(candidates, bestPatternIndex, 0, plh);
-      if(original == null)
+      List<FeatureListRow> rowBuffer = new ArrayList<FeatureListRow>();
+
+      ModularFeatureListRow original = getRowFromCandidate(candidates, bestPatternIndex, 0, plh);
+      if (original == null)
         continue;
-      
-      PeakListRow parent = copyPeakRow(original);
-      
-      if (resultMap.containsID(parent.getID())) // if we can assign this row multiple times we
-                                                // have to copy the comment, because adding it to
-                                                // the map twice will overwrite the results
+
+      ModularFeatureListRow parent = new ModularFeatureListRow(resultPeakList, original, true);
+
+      if (resultMap.containsID(parent.getID())) // if we can assign this
+                                                // row multiple times we
+                                                // have to copy the
+                                                // comment, because adding
+                                                // it to
+                                                // the map twice will
+                                                // overwrite the results
         addComment(parent, resultMap.getRowByID(parent.getID()).getComment());
 
-      addComment(parent, parent.getID() + "--IS PARENT--"); // ID is added to be able to sort by
+      addComment(parent, parent.getID() + "--IS PARENT--"); // ID is added
+                                                            // to be able
+                                                            // to sort by
       // comment to bring all isotope patterns together
 
       if (carbonRange != 1)
@@ -441,19 +469,24 @@ public class IsotopePeakScannerTask extends AbstractTask {
         dp[0] = new SimpleDataPoint(parent.getAverageMZ(), parent.getAverageHeight());
       }
 
-      for (int k = 1; k < candidates[bestPatternIndex].size(); k++) // we skip k=0 because ==
+      for (int k = 1; k < candidates[bestPatternIndex].size(); k++) // we
+                                                                    // skip
+                                                                    // k=0
+                                                                    // because
+                                                                    // ==
                                                                     // groupedPeaks[0]/
       // ==candidates.get(0) which we added before
       {
-        PeakListRow originalChild = getRowFromCandidate(candidates, bestPatternIndex, k, plh);
-       
-        if(originalChild == null) {
+        ModularFeatureListRow originalChild =
+            getRowFromCandidate(candidates, bestPatternIndex, k, plh);
+
+        if (originalChild == null) {
           allPeaksAddable = false;
           continue;
         }
-        PeakListRow child =
-            copyPeakRow(originalChild);
-        
+        ModularFeatureListRow child =
+            new ModularFeatureListRow(resultPeakList, originalChild, true);
+
         if (accurateAvgIntensity) {
           dp[k] = new SimpleDataPoint(child.getAverageMZ(),
               candidates[bestPatternIndex].getAvgHeight(k));
@@ -466,9 +499,8 @@ public class IsotopePeakScannerTask extends AbstractTask {
           average = " AvgRating: " + round(candidates[bestPatternIndex].getAvgRating(k), 3);
         }
 
-
         addComment(parent, "Intensity ratios: " + getIntensityRatios(pattern[bestPatternIndex],
-            pattern[bestPatternIndex].getHighestDataPointIndex()));
+            pattern[bestPatternIndex].getBasePeakIndex()));
         if (accurateAvgIntensity)
           addComment(parent, " Avg pattern rating: "
               + round(candidates[bestPatternIndex].getAvgAccAvgRating(), 3));
@@ -483,23 +515,23 @@ public class IsotopePeakScannerTask extends AbstractTask {
                 + " I(c)/I(p): "
                 + round(child.getAverageHeight() / plh
                     .getRowByID(candidates[bestPatternIndex]
-                        .get(pattern[bestPatternIndex].getHighestDataPointIndex()).getCandID())
+                        .get(pattern[bestPatternIndex].getBasePeakIndex()).getCandID())
                     .getAverageHeight(), 2)
                 + " Identity: " + pattern[bestPatternIndex].getIsotopeComposition(k) + " Rating: "
                 + round(candidates[bestPatternIndex].get(k).getRating(), 3) + average));
 
         rowBuffer.add(child);
       }
-      
-      if(!allPeaksAddable)
+
+      if (!allPeaksAddable)
         continue;
-      
+
       IsotopePattern resultPattern = new SimpleIsotopePattern(dp, IsotopePatternStatus.DETECTED,
           element + " monoisotopic mass: " + parent.getAverageMZ());
-      parent.getBestPeak().setIsotopePattern(resultPattern);
+      parent.getBestFeature().setIsotopePattern(resultPattern);
 
-      for(PeakListRow row : rowBuffer) {
-        row.getBestPeak().setIsotopePattern(resultPattern);
+      for (FeatureListRow row : rowBuffer) {
+        row.getBestFeature().setIsotopePattern(resultPattern);
         resultMap.addRow(row);
       }
 
@@ -522,7 +554,7 @@ public class IsotopePeakScannerTask extends AbstractTask {
   }
 
   /**
-   * 
+   *
    * @param b
    * @return true if every b[i].getFoundCount != 0
    */
@@ -539,38 +571,42 @@ public class IsotopePeakScannerTask extends AbstractTask {
         return false;
     return true;
   }
-  
+
   /**
    * Extracts a feature list row from a Candidates array.
+   *
    * @param candidates
-   * @param bestPatternIndex The index of the isotope pattern that was found to be the best fit for the detected pattern
+   * @param bestPatternIndex The index of the isotope pattern that was found to be the best fit for
+   *        the detected pattern
    * @param peakIndex the index of the candidate peak, the feature list row should be extracted for.
    * @param plh
-   * @return null if no peak with the given parameters exists, the specified feature list row otherwise.
+   * @return null if no peak with the given parameters exists, the specified feature list row
+   *         otherwise.
    */
-  private @Nullable PeakListRow getRowFromCandidate(@Nonnull Candidates[] candidates, int bestPatternIndex, int peakIndex, @Nonnull PeakListHandler plh) {
-    
-    if(bestPatternIndex >= candidates.length)
+  private @Nullable ModularFeatureListRow getRowFromCandidate(@Nonnull Candidates[] candidates,
+      int bestPatternIndex, int peakIndex, @Nonnull PeakListHandler plh) {
+
+    if (bestPatternIndex >= candidates.length)
       return null;
-    
-    if(peakIndex >= candidates[bestPatternIndex].size())
+
+    if (peakIndex >= candidates[bestPatternIndex].size())
       return null;
-    
+
     Candidate cand = candidates[bestPatternIndex].get(peakIndex);
-    
-    if(cand != null) {
+
+    if (cand != null) {
       int id = cand.getCandID();
-      PeakListRow original = plh.getRowByID(id);
-      return original;
+      FeatureListRow original = plh.getRowByID(id);
+      return (ModularFeatureListRow) original;
     }
     return null;
   }
 
   /**
-   * This calculates the isotope pattern using ExtendedIsotopePattern and creates an
-   * ArrayList<Double> that will contain the mass shift for every expected isotope peak relative to
-   * the one with the lowest mass.
-   * 
+   * This calculates the isotope pattern using SimpleIsotopePattern and creates an ArrayList<Double>
+   * that will contain the mass shift for every expected isotope peak relative to the one with the
+   * lowest mass.
+   *
    * @return
    */
   private double[][] setUpDiffAutoCarbon() {
@@ -583,7 +619,7 @@ public class IsotopePeakScannerTask extends AbstractTask {
 
       String[] strPattern = new String[carbonRange];
 
-      ExtendedIsotopePattern patternBuffer[] = new ExtendedIsotopePattern[carbonRange];
+      SimpleIsotopePattern patternBuffer[] = new SimpleIsotopePattern[carbonRange];
 
       // in the following for we calculate up the patterns
       for (int p = 0; p < carbonRange; p++) {
@@ -594,9 +630,9 @@ public class IsotopePeakScannerTask extends AbstractTask {
 
         try {
           patternBuffer[p] =
-              (ExtendedIsotopePattern) IsotopePatternCalculator.calculateIsotopePattern(
-                  strPattern[p], 0.001, mergeWidth, charge, polarityType, true);
-          patternBuffer[p] = (ExtendedIsotopePattern) IsotopePatternCalculator
+              (SimpleIsotopePattern) IsotopePatternCalculator.calculateIsotopePattern(strPattern[p],
+                  0.001, mergeWidth, charge, polarityType, true);
+          patternBuffer[p] = (SimpleIsotopePattern) IsotopePatternCalculator
               .removeDataPointsBelowIntensity(patternBuffer[p], minPatternIntensity);
         } catch (Exception e) {
           logger.warning("The entered Sum formula is invalid.");
@@ -605,7 +641,8 @@ public class IsotopePeakScannerTask extends AbstractTask {
       }
 
       int sizeCounter = 0;
-      // in this for we check how much of the patterns match the autoCarbonMinPatternSize criteria
+      // in this for we check how much of the patterns match the
+      // autoCarbonMinPatternSize criteria
       // if they dont fit we null them
       for (int p = 0; p < carbonRange; p++) {
         if (patternBuffer[p].getNumberOfDataPoints() >= autoCarbonMinPatternSize) {
@@ -622,7 +659,7 @@ public class IsotopePeakScannerTask extends AbstractTask {
       logger.info("about to add " + sizeCounter + " patterns to the scan.");
       diff = new double[sizeCounter][];
       int addCounter = 0;
-      pattern = new ExtendedIsotopePattern[sizeCounter];
+      pattern = new SimpleIsotopePattern[sizeCounter];
       for (int p = 0; p < carbonRange; p++) {
 
         if (patternBuffer[p] == null)
@@ -644,10 +681,10 @@ public class IsotopePeakScannerTask extends AbstractTask {
       }
     } else /* if(scanType == ScanType.SPECIFIC) */ {
       diff = new double[1][];
-      pattern = new ExtendedIsotopePattern[1];
-      pattern[0] = (ExtendedIsotopePattern) IsotopePatternCalculator
-          .calculateIsotopePattern(element, 0.001, mergeWidth, charge, polarityType, true);
-      pattern[0] = (ExtendedIsotopePattern) IsotopePatternCalculator
+      pattern = new SimpleIsotopePattern[1];
+      pattern[0] = (SimpleIsotopePattern) IsotopePatternCalculator.calculateIsotopePattern(element,
+          0.001, mergeWidth, charge, polarityType, true);
+      pattern[0] = (SimpleIsotopePattern) IsotopePatternCalculator
           .removeDataPointsBelowIntensity(pattern[0], minPatternIntensity);
       DataPoint[] points = pattern[0].getDataPoints();
       diff[0] = new double[points.length];
@@ -666,25 +703,27 @@ public class IsotopePeakScannerTask extends AbstractTask {
   }
 
   /**
-   * 
+   *
    * @param pL
    * @param parentIndex index of possible parent peak
-   * @param maxMass
    * @return will return ArrayList<PeakListRow> of all peaks within the range of pL[parentIndex].mz
    *         -> pL[parentIndex].mz+maxMass
    */
-  private ArrayList<PeakListRow> groupPeaks(PeakListRow[] pL, int parentIndex, double maxDiff) {
+  private ArrayList<FeatureListRow> groupPeaks(FeatureListRow[] pL, int parentIndex,
+      double maxDiff) {
 
-    ArrayList<PeakListRow> buf = new ArrayList<PeakListRow>();
+    ArrayList<FeatureListRow> buf = new ArrayList<FeatureListRow>();
 
-    buf.add(pL[parentIndex]); // this means the result will contain row(parentIndex) itself
+    buf.add(pL[parentIndex]); // this means the result will contain
+                              // row(parentIndex) itself
 
     double mz = pL[parentIndex].getAverageMZ();
-    double rt = pL[parentIndex].getAverageRT();
+    float rt = pL[parentIndex].getAverageRT();
 
-    for (int i = parentIndex + 1; i < pL.length; i++) // will not add the parent peak itself
+    for (int i = parentIndex + 1; i < pL.length; i++) // will not add the
+                                                      // parent peak itself
     {
-      PeakListRow r = pL[i];
+      FeatureListRow r = pL[i];
       // check for rt
 
       if (r.getAverageHeight() < minHeight)
@@ -692,8 +731,10 @@ public class IsotopePeakScannerTask extends AbstractTask {
 
       if (!(pL[i].getAverageMZ() > mz
           && pL[i].getAverageMZ() <= (mz + maxDiff + mzTolerance.getMzTolerance()))) {
-       
-        if (pL[i].getAverageMZ() > (mz + maxDiff)) // since pL is sorted by ascending mass, we can
+
+        if (pL[i].getAverageMZ() > (mz + maxDiff)) // since pL is sorted
+                                                   // by ascending mass,
+                                                   // we can
           // stop now
           return buf;
         continue;
@@ -708,28 +749,7 @@ public class IsotopePeakScannerTask extends AbstractTask {
   }
 
   /**
-   * Create a copy of a feature list row.
    *
-   * @param row the row to copy.
-   * @return the newly created copy.
-   */
-  private static PeakListRow copyPeakRow(final PeakListRow row) {
-    // Copy the feature list row.
-    final PeakListRow newRow = new SimplePeakListRow(row.getID());
-    PeakUtils.copyPeakListRowProperties(row, newRow);
-
-    // Copy the peaks.
-    for (final Feature peak : row.getPeaks()) {
-      final Feature newPeak = new SimpleFeature(peak);
-      PeakUtils.copyPeakProperties(peak, newPeak);
-      newRow.addPeak(peak.getDataFile(), newPeak);
-    }
-
-    return newRow;
-  }
-
-  /**
-   * 
    * @param pattern IsotopePattern to calculate intensity ratios of
    * @param index DataPoint index to normalize the intesitys to
    * @return String of intensity ratios seperated by ":"
@@ -756,11 +776,11 @@ public class IsotopePeakScannerTask extends AbstractTask {
 
   /**
    * adds a comment to a PeakListRow without deleting the current comment
-   * 
+   *
    * @param row PeakListRow to add the comment to
    * @param str comment to be added
    */
-  public static void addComment(PeakListRow row, String str) {
+  public static void addComment(FeatureListRow row, String str) {
     String current = row.getComment();
     if (current == null)
       row.setComment(str);
@@ -771,25 +791,27 @@ public class IsotopePeakScannerTask extends AbstractTask {
   }
 
   /**
-   * Add feature list to project, delete old if requested, add description to result
+   * Add feature list to project, delete old if requested, add description to result, show new
+   * feature list in a new tab
    */
   public void addResultToProject() {
     // Add new peakList to the project
-    project.addPeakList(resultPeakList);
+    project.addFeatureList(resultPeakList);
 
     // Load previous applied methods
-    for (PeakListAppliedMethod proc : peakList.getAppliedMethods()) {
+    for (FeatureListAppliedMethod proc : peakList.getAppliedMethods()) {
       resultPeakList.addDescriptionOfAppliedTask(proc);
     }
 
     // Add task description to peakList
     resultPeakList.addDescriptionOfAppliedTask(
-        new SimplePeakListAppliedMethod("IsotopePeakScanner", parameters));
+        new SimpleFeatureListAppliedMethod("IsotopePeakScanner", parameters));
   }
 
-  private PolarityType getPeakListPolarity(PeakList peakList) {
-    int[] scans = peakList.getRow(0).getPeaks()[0].getScanNumbers();
-    RawDataFile raw = peakList.getRow(0).getPeaks()[0].getDataFile();
+  private PolarityType getPeakListPolarity(FeatureList peakList) {
+    int[] scans = peakList.getRow(0).getFeatures().get(0).getScanNumbers().stream().mapToInt(i -> i)
+        .toArray();
+    RawDataFile raw = peakList.getRow(0).getFeatures().get(0).getRawDataFile();
     return raw.getScan(scans[0]).getPolarity();
   }
 
@@ -807,19 +829,20 @@ public class IsotopePeakScannerTask extends AbstractTask {
 
     if (accurateAvgIntensity || ratingType == RatingType.TEMPAVG) {
       if (massListName.equals("") && ratingType == RatingType.TEMPAVG) {
-        setErrorMessage("Error: Rating Type = temporary average but no masslist was selected.\nYou can"
-            + " select a mass list without checking accurate average.");
+        setErrorMessage(
+            "Error: Rating Type = temporary average but no masslist was selected.\nYou can"
+                + " select a mass list without checking accurate average.");
         setStatus(TaskStatus.ERROR);
         return false;
       }
       if (peakList.getNumberOfRawDataFiles() > 1) {
         setErrorMessage("The number of raw data files of feature list \"" + peakList.getName()
-        + "\" is greater than 1. This is not supported by this module.");
+            + "\" is greater than 1. This is not supported by this module.");
         setStatus(TaskStatus.ERROR);
         return false;
       }
 
-      RawDataFile[] raws = peakList.getRawDataFiles();
+      RawDataFile[] raws = peakList.getRawDataFiles().toArray(RawDataFile[]::new);
       boolean foundMassList = false;
       for (RawDataFile raw : raws) {
         int scanNumbers[] = raw.getScanNumbers();
@@ -832,8 +855,8 @@ public class IsotopePeakScannerTask extends AbstractTask {
         }
       }
       if (foundMassList == false) {
-        setErrorMessage("Feature list \"" + peakList.getName() + "\" does not contain a mass list by the name of "
-                + massListName + ".");
+        setErrorMessage("Feature list \"" + peakList.getName()
+            + "\" does not contain a mass list by the name of " + massListName + ".");
         setStatus(TaskStatus.ERROR);
         return false;
       }
@@ -841,5 +864,3 @@ public class IsotopePeakScannerTask extends AbstractTask {
     return true;
   }
 }
-
-

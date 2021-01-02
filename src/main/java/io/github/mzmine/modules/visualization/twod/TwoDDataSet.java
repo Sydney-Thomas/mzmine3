@@ -1,17 +1,17 @@
 /*
- * Copyright 2006-2018 The MZmine 2 Development Team
- * 
- * This file is part of MZmine 2.
- * 
- * MZmine 2 is free software; you can redistribute it and/or modify it under the terms of the GNU
+ * Copyright 2006-2020 The MZmine Development Team
+ *
+ * This file is part of MZmine.
+ *
+ * MZmine is free software; you can redistribute it and/or modify it under the terms of the GNU
  * General Public License as published by the Free Software Foundation; either version 2 of the
  * License, or (at your option) any later version.
- * 
- * MZmine 2 is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
- * even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- * 
- * You should have received a copy of the GNU General Public License along with MZmine 2; if not,
+ *
+ * MZmine is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+ * the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
+ * Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with MZmine; if not,
  * write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301
  * USA
  */
@@ -23,7 +23,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import org.jfree.data.xy.AbstractXYDataset;
 import com.google.common.collect.Range;
-
 import io.github.mzmine.datamodel.DataPoint;
 import io.github.mzmine.datamodel.RawDataFile;
 import io.github.mzmine.datamodel.Scan;
@@ -35,6 +34,7 @@ import io.github.mzmine.taskcontrol.TaskStatus;
 import io.github.mzmine.util.DataPointSorter;
 import io.github.mzmine.util.SortingDirection;
 import io.github.mzmine.util.SortingProperty;
+import javafx.application.Platform;
 
 class TwoDDataSet extends AbstractXYDataset implements Task {
 
@@ -42,23 +42,23 @@ class TwoDDataSet extends AbstractXYDataset implements Task {
 
   private RawDataFile rawDataFile;
 
-  private double retentionTimes[];
+  private float retentionTimes[];
   private double basePeaks[];
   private SoftReference<DataPoint[]> dataPointMatrix[];
 
-  private final Range<Double> totalRTRange, totalMZRange;
+  private final Range<Double> totalMZRange;
+  private final Range<Float> totalRTRange;
   private int totalScans, processedScans;
   private final Scan scans[];
 
   private TaskStatus status = TaskStatus.WAITING;
 
   public double curMaxIntensity;
-  private ArrayList<Double> rtValuesInUserRange;
-
+  private ArrayList<Float> rtValuesInUserRange;
 
   @SuppressWarnings("unchecked")
-  TwoDDataSet(RawDataFile rawDataFile, Scan scans[], Range<Double> rtRange, Range<Double> mzRange,
-      TwoDVisualizerWindow visualizer) {
+  TwoDDataSet(RawDataFile rawDataFile, Scan scans[], Range<Float> rtRange, Range<Double> mzRange,
+      TwoDVisualizerTab visualizer) {
 
     this.rawDataFile = rawDataFile;
 
@@ -70,11 +70,10 @@ class TwoDDataSet extends AbstractXYDataset implements Task {
     totalScans = scans.length;
 
     dataPointMatrix = new SoftReference[totalScans];
-    retentionTimes = new double[totalScans];
+    retentionTimes = new float[totalScans];
     basePeaks = new double[totalScans];
 
     MZmineCore.getTaskController().addTask(this, TaskPriority.HIGH);
-
 
   }
 
@@ -90,15 +89,15 @@ class TwoDDataSet extends AbstractXYDataset implements Task {
         return;
 
       Scan scan = scans[index];
-      DataPoint scanBasePeak = scan.getHighestDataPoint();
+      Double scanBasePeakInt = scan.getBasePeakIntensity();
       retentionTimes[index] = scan.getRetentionTime();
-      basePeaks[index] = (scanBasePeak == null ? 0 : scanBasePeak.getIntensity());
+      basePeaks[index] = (scanBasePeakInt == null ? 0 : scanBasePeakInt);
       DataPoint scanDataPoints[] = scan.getDataPoints();
       dataPointMatrix[index] = new SoftReference<DataPoint[]>(scanDataPoints);
       processedScans++;
     }
 
-    fireDatasetChanged();
+    Platform.runLater(() -> fireDatasetChanged());
 
     status = TaskStatus.FINISHED;
 
@@ -150,13 +149,13 @@ class TwoDDataSet extends AbstractXYDataset implements Task {
       return totalMZRange.upperEndpoint();
   }
 
-  double upperEndpointIntensity(Range<Double> rtRange, Range<Double> mzRange, PlotMode plotMode) {
+  double upperEndpointIntensity(Range<Float> rtRange, Range<Double> mzRange, PlotMode plotMode) {
 
     double maxIntensity = 0;
 
-    double searchRetentionTimes[] = retentionTimes;
+    float searchRetentionTimes[] = retentionTimes;
     if (processedScans < totalScans) {
-      searchRetentionTimes = new double[processedScans];
+      searchRetentionTimes = new float[processedScans];
       System.arraycopy(retentionTimes, 0, searchRetentionTimes, 0, searchRetentionTimes.length);
     }
 
@@ -208,25 +207,25 @@ class TwoDDataSet extends AbstractXYDataset implements Task {
     return rtValuesInUserRange;
   }
 
-  // Sets the private list to contain the rt values for each data point scan of scans that fall in
+  // Sets the private list to contain the rt values for each data point scan
+  // of scans that fall in
   // the user
   // range. returns an array of the data points but not the rt.
-  ArrayList getCentroidedDataPointsInRTMZRange(Range<Double> rtRange, Range<Double> mzRange) {
+  ArrayList getCentroidedDataPointsInRTMZRange(Range<Float> rtRange, Range<Double> mzRange) {
     ArrayList<DataPoint> dataPointsInRanges = new ArrayList<DataPoint>();
     ArrayList rtInRange = new ArrayList();
 
     curMaxIntensity = 0.0;
 
-    double searchRetentionTimes[] = retentionTimes;
+    float searchRetentionTimes[] = retentionTimes;
 
     if (processedScans < totalScans) {
-      searchRetentionTimes = new double[processedScans];
+      searchRetentionTimes = new float[processedScans];
       System.arraycopy(retentionTimes, 0, searchRetentionTimes, 0, searchRetentionTimes.length);
     }
 
     // Find the rt of the scan at the bottom of our rtRange
     int startScanIndex = Arrays.binarySearch(searchRetentionTimes, rtRange.lowerEndpoint());
-
 
     // a couple of checks
     if (startScanIndex < 0) {
@@ -237,9 +236,8 @@ class TwoDDataSet extends AbstractXYDataset implements Task {
       startScanIndex = 0;
     }
 
-
-
-    // With this we can grab the data points from the scans we want using dataPointMatrix
+    // With this we can grab the data points from the scans we want using
+    // dataPointMatrix
 
     for (int scanIndex = startScanIndex; ((scanIndex < searchRetentionTimes.length)
         && (searchRetentionTimes[scanIndex] <= rtRange.upperEndpoint())); scanIndex++) {
@@ -271,10 +269,8 @@ class TwoDDataSet extends AbstractXYDataset implements Task {
 
         double curIntensity = curFoundDataPoint.getIntensity();
 
-
         if (curIntensity > curMaxIntensity)
           curMaxIntensity = curIntensity;
-
 
       }
 

@@ -1,17 +1,17 @@
 /*
- * Copyright 2006-2018 The MZmine 2 Development Team
+ * Copyright 2006-2020 The MZmine Development Team
  *
- * This file is part of MZmine 2.
+ * This file is part of MZmine.
  *
- * MZmine 2 is free software; you can redistribute it and/or modify it under the terms of the GNU
+ * MZmine is free software; you can redistribute it and/or modify it under the terms of the GNU
  * General Public License as published by the Free Software Foundation; either version 2 of the
  * License, or (at your option) any later version.
  *
- * MZmine 2 is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
- * even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
+ * MZmine is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+ * the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
+ * Public License for more details.
  *
- * You should have received a copy of the GNU General Public License along with MZmine 2; if not,
+ * You should have received a copy of the GNU General Public License along with MZmine; if not,
  * write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301
  * USA
  */
@@ -44,12 +44,12 @@ import io.github.mzmine.util.R.RSessionWrapperException;
  * methods by themselves). Those correctors all share a common behavior by inheriting from the base
  * class "BaselineCorrector", and apply there specific way of building the baselines via the various
  * algorithms implemented in the sub-package
- * "net.sf.mzmine.modules.rawdatamethods.filtering.baselinecorrection.correctors" .
+ * "io.github.mzmine.modules.rawdatamethods.filtering.baselinecorrection.correctors" .
  */
 public class BaselineCorrectionTask extends AbstractTask {
 
   // Logger.
-  private static final Logger LOG = Logger.getLogger(BaselineCorrectionTask.class.getName());
+  private static final Logger logger = Logger.getLogger(BaselineCorrectionTask.class.getName());
 
   // Original data file and newly created baseline corrected file.
   private final MZmineProject project;
@@ -143,7 +143,7 @@ public class BaselineCorrectionTask extends AbstractTask {
         // Set task status to FINISHED
         setStatus(TaskStatus.FINISHED);
 
-        LOG.info("Baseline corrected " + origDataFile.getName());
+        logger.info("Baseline corrected " + origDataFile.getName());
       }
       // Turn off R instance, once task ended gracefully.
       if (!isCanceled())

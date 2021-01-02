@@ -1,17 +1,17 @@
 /*
- * Copyright 2006-2018 The MZmine 2 Development Team
+ * Copyright 2006-2020 The MZmine Development Team
  * 
- * This file is part of MZmine 2.
+ * This file is part of MZmine.
  * 
- * MZmine 2 is free software; you can redistribute it and/or modify it under the terms of the GNU
+ * MZmine is free software; you can redistribute it and/or modify it under the terms of the GNU
  * General Public License as published by the Free Software Foundation; either version 2 of the
  * License, or (at your option) any later version.
  * 
- * MZmine 2 is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
- * even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
+ * MZmine is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+ * the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
+ * Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with MZmine 2; if not,
+ * You should have received a copy of the GNU General Public License along with MZmine; if not,
  * write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301
  * USA
  */
@@ -29,6 +29,7 @@
 
 package io.github.mzmine.modules.io.gnpsexport.gc;
 
+import io.github.mzmine.datamodel.features.FeatureList;
 import java.awt.Desktop;
 import java.io.File;
 import java.util.ArrayList;
@@ -36,14 +37,17 @@ import java.util.Collection;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import org.apache.commons.io.FilenameUtils;
+
 import com.google.common.util.concurrent.AtomicDouble;
+
 import io.github.msdk.MSDKRuntimeException;
-import io.github.mzmine.datamodel.PeakList;
 import io.github.mzmine.main.MZmineCore;
 import io.github.mzmine.modules.io.adapmgfexport.AdapMgfExportModule;
 import io.github.mzmine.modules.io.adapmgfexport.AdapMgfExportParameters;
-import io.github.mzmine.modules.io.adapmgfexport.AdapMgfExportTask;
 import io.github.mzmine.modules.io.adapmgfexport.AdapMgfExportParameters.MzMode;
+import io.github.mzmine.modules.io.adapmgfexport.AdapMgfExportTask;
 import io.github.mzmine.modules.io.csvexport.CSVExportTask;
 import io.github.mzmine.modules.io.csvexport.ExportRowCommonElement;
 import io.github.mzmine.modules.io.csvexport.ExportRowDataFileElement;
@@ -55,7 +59,7 @@ import io.github.mzmine.taskcontrol.AllTasksFinishedListener;
 import io.github.mzmine.taskcontrol.Task;
 import io.github.mzmine.taskcontrol.TaskPriority;
 import io.github.mzmine.taskcontrol.TaskStatus;
-import io.github.mzmine.util.PeakMeasurementType;
+import io.github.mzmine.util.FeatureMeasurementType;
 import io.github.mzmine.util.files.FileAndPathUtil;
 
 /**
@@ -66,34 +70,34 @@ import io.github.mzmine.util.files.FileAndPathUtil;
  */
 public class GnpsGcExportAndSubmitTask extends AbstractTask {
   // Logger.
-  private final Logger LOG = Logger.getLogger(getClass().getName());
+  private final Logger logger = Logger.getLogger(getClass().getName());
 
   private ParameterSet parameters;
   private AtomicDouble progress = new AtomicDouble(0);
 
-  private PeakList peakList;
+  private FeatureList featureList;
   private MzMode representativeMZ;
-  private PeakMeasurementType peakMeasure;
+  private FeatureMeasurementType featureMeasure;
 
   private File file;
   private boolean submit;
   private boolean openFolder;
 
-
   GnpsGcExportAndSubmitTask(ParameterSet parameters) {
     this.parameters = parameters;
 
-    this.peakList = parameters.getParameter(GnpsGcExportAndSubmitParameters.PEAK_LISTS).getValue()
-        .getMatchingPeakLists()[0];
+    this.featureList = parameters.getParameter(GnpsGcExportAndSubmitParameters.FEATURE_LISTS).getValue()
+        .getMatchingFeatureLists()[0];
     this.representativeMZ =
         parameters.getParameter(GnpsGcExportAndSubmitParameters.REPRESENTATIVE_MZ).getValue();
-    this.peakMeasure =
-        parameters.getParameter(GnpsGcExportAndSubmitParameters.PEAK_INTENSITY).getValue();
+    this.featureMeasure =
+        parameters.getParameter(GnpsGcExportAndSubmitParameters.FEATURE_INTENSITY).getValue();
     openFolder = parameters.getParameter(GnpsGcExportAndSubmitParameters.OPEN_FOLDER).getValue();
     file = parameters.getParameter(GnpsGcExportAndSubmitParameters.FILENAME).getValue();
     file = FileAndPathUtil.eraseFormat(file);
     parameters.getParameter(GnpsGcExportAndSubmitParameters.FILENAME).setValue(file);
-    // submit = parameters.getParameter(GnpsGcExportAndSubmitParameters.SUBMIT).getValue();
+    // submit =
+    // parameters.getParameter(GnpsGcExportAndSubmitParameters.SUBMIT).getValue();
     submit = false;
   }
 
@@ -132,7 +136,7 @@ public class GnpsGcExportAndSubmitTask extends AbstractTask {
         // succeed
         l -> {
           try {
-            LOG.info("succeed" + thistask.getStatus().toString());
+            logger.info("succeed" + thistask.getStatus().toString());
             if (submit) {
               GnpsGcSubmitParameters param = parameters
                   .getParameter(GnpsGcExportAndSubmitParameters.SUBMIT).getEmbeddedParameters();
@@ -174,7 +178,7 @@ public class GnpsGcExportAndSubmitTask extends AbstractTask {
       try {
         Thread.sleep(100);
       } catch (InterruptedException e) {
-        LOG.log(Level.SEVERE, "Error in GNPS-GC export/submit task", e);
+        logger.log(Level.SEVERE, "Error in GNPS-GC export/submit task", e);
       }
     }
   }
@@ -187,7 +191,7 @@ public class GnpsGcExportAndSubmitTask extends AbstractTask {
    */
   private AbstractTask addAdapMgfTask(ParameterSet parameters) {
     File full = parameters.getParameter(GnpsGcExportAndSubmitParameters.FILENAME).getValue();
-    String name = FileAndPathUtil.eraseFormat(full.getName());
+    String name = FilenameUtils.removeExtension(full.getName());
     full = FileAndPathUtil.getRealFilePath(full.getParentFile(), name, "mgf");
 
     ParameterSet mgfParam =
@@ -195,7 +199,7 @@ public class GnpsGcExportAndSubmitTask extends AbstractTask {
     mgfParam.getParameter(AdapMgfExportParameters.FILENAME).setValue(full);
     mgfParam.getParameter(AdapMgfExportParameters.FRACTIONAL_MZ).setValue(true);
     mgfParam.getParameter(AdapMgfExportParameters.REPRESENTATIVE_MZ).setValue(representativeMZ);
-    return new AdapMgfExportTask(mgfParam, new PeakList[] {peakList});
+    return new AdapMgfExportTask(mgfParam, new FeatureList[] {featureList});
   }
 
   /**
@@ -208,9 +212,9 @@ public class GnpsGcExportAndSubmitTask extends AbstractTask {
     try {
       String url = GNPSUtils.submitGcJob(fileName, param);
       if (url == null || url.isEmpty())
-        LOG.log(Level.WARNING, "GNPS-GC submit failed (url empty)");
+        logger.log(Level.WARNING, "GNPS-GC submit failed (url empty)");
     } catch (Exception e) {
-      LOG.log(Level.WARNING, "GNPS-GC submit failed", e);
+      logger.log(Level.WARNING, "GNPS-GC submit failed", e);
     }
   }
 
@@ -222,7 +226,7 @@ public class GnpsGcExportAndSubmitTask extends AbstractTask {
    */
   private AbstractTask addQuantTableTask(ParameterSet parameters, Collection<Task> tasks) {
     File full = parameters.getParameter(GnpsGcExportAndSubmitParameters.FILENAME).getValue();
-    String name = FileAndPathUtil.eraseFormat(full.getName());
+    String name = FilenameUtils.removeExtension(full.getName());
     full = FileAndPathUtil.getRealFilePath(full.getParentFile(), name + "_quant", "csv");
 
     ExportRowCommonElement[] common = new ExportRowCommonElement[] {ExportRowCommonElement.ROW_ID,
@@ -230,10 +234,10 @@ public class GnpsGcExportAndSubmitTask extends AbstractTask {
 
     // height or area?
     ExportRowDataFileElement[] rawdata = new ExportRowDataFileElement[] {
-        peakMeasure.equals(PeakMeasurementType.AREA) ? ExportRowDataFileElement.PEAK_AREA
-            : ExportRowDataFileElement.PEAK_HEIGHT};
+        featureMeasure.equals(FeatureMeasurementType.AREA) ? ExportRowDataFileElement.FEATURE_AREA
+            : ExportRowDataFileElement.FEATURE_HEIGHT};
 
-    CSVExportTask quanExport = new CSVExportTask(new PeakList[] {peakList}, full, ",", common,
+    CSVExportTask quanExport = new CSVExportTask(new FeatureList[] {featureList}, full, ",", common,
         rawdata, false, ";", RowFilter.ALL);
     if (tasks != null)
       tasks.add(quanExport);

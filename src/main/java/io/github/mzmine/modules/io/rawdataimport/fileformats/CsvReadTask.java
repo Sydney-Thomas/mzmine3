@@ -1,17 +1,17 @@
 /*
- * Copyright 2006-2018 The MZmine 2 Development Team
- * 
- * This file is part of MZmine 2.
- * 
- * MZmine 2 is free software; you can redistribute it and/or modify it under the terms of the GNU
+ * Copyright 2006-2020 The MZmine Development Team
+ *
+ * This file is part of MZmine.
+ *
+ * MZmine is free software; you can redistribute it and/or modify it under the terms of the GNU
  * General Public License as published by the Free Software Foundation; either version 2 of the
  * License, or (at your option) any later version.
- * 
- * MZmine 2 is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
- * even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- * 
- * You should have received a copy of the GNU General Public License along with MZmine 2; if not,
+ *
+ * MZmine is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+ * the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
+ * Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with MZmine; if not,
  * write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301
  * USA
  */
@@ -28,17 +28,12 @@ import java.util.logging.Logger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import com.google.common.collect.Range;
-
-import io.github.mzmine.datamodel.DataPoint;
 import io.github.mzmine.datamodel.MZmineProject;
 import io.github.mzmine.datamodel.MassSpectrumType;
 import io.github.mzmine.datamodel.PolarityType;
 import io.github.mzmine.datamodel.RawDataFile;
-import io.github.mzmine.datamodel.RawDataFileWriter;
 import io.github.mzmine.datamodel.Scan;
-import io.github.mzmine.datamodel.impl.SimpleDataPoint;
 import io.github.mzmine.datamodel.impl.SimpleScan;
-import io.github.mzmine.project.impl.RawDataFileImpl;
 import io.github.mzmine.taskcontrol.AbstractTask;
 import io.github.mzmine.taskcontrol.TaskStatus;
 
@@ -49,15 +44,15 @@ public class CsvReadTask extends AbstractTask {
   protected String dataSource;
   private File file;
   private MZmineProject project;
-  private RawDataFileImpl newMZmineFile;
+  private RawDataFile newMZmineFile;
   private RawDataFile finalRawDataFile;
 
   private int totalScans, parsedScans;
 
-  public CsvReadTask(MZmineProject project, File fileToOpen, RawDataFileWriter newMZmineFile) {
+  public CsvReadTask(MZmineProject project, File fileToOpen, RawDataFile newMZmineFile) {
     this.project = project;
     this.file = fileToOpen;
-    this.newMZmineFile = (RawDataFileImpl) newMZmineFile;
+    this.newMZmineFile = newMZmineFile;
   }
 
   @Override
@@ -119,7 +114,7 @@ public class CsvReadTask extends AbstractTask {
               logger.fine("Axis " + axis + " was scanned at m/z = '" + mz + "'");
               mzsList.add(mz);
             } else {
-              String mz = axis.replaceAll("[^0-9]","");
+              String mz = axis.replaceAll("[^0-9]", "");
               logger.fine("axis " + axis + " was scanned at " + mz);
               mzsList.add(mz);
             }
@@ -128,11 +123,11 @@ public class CsvReadTask extends AbstractTask {
         }
       }
 
-      int[] mzs = new int[mzsList.size()];
+      double[] mzValues = new double[mzsList.size()];
       for (int i = 0; i < mzsList.size(); i++)
-        mzs[i] = Integer.valueOf(mzsList.get(i));
+        mzValues[i] = Integer.valueOf(mzsList.get(i));
 
-      Range<Double> mzRange = Range.closed((double) mzs[0] - 10, (double) mzs[1] + 10);
+      Range<Double> mzRange = Range.closed(mzValues[0] - 10, mzValues[1] + 10);
 
       int scanNumber = 1;
 
@@ -141,28 +136,26 @@ public class CsvReadTask extends AbstractTask {
         if (line == null || line.trim().equals(""))
           continue;
         String[] columns = line.split(",");
-        if (columns == null || columns.length != mzs.length + 1)
+        if (columns == null || columns.length != mzValues.length + 1)
           continue;
 
-        double rt = Double.valueOf(columns[0]) / 60;
+        float rt = (float) (Double.valueOf(columns[0]) / 60);
 
-        DataPoint dataPoints[] = new SimpleDataPoint[mzs.length];
-        for (int i = 0; i < dataPoints.length; i++) {
+        double intensityValues[] = new double[mzValues.length];
+        for (int i = 0; i < intensityValues.length; i++) {
           String intensity = columns[i + 1];
-          dataPoints[i] = new SimpleDataPoint(mzs[i], Double.valueOf(intensity));
+          intensityValues[i] = Double.valueOf(intensity);
         }
 
-        Scan scan = new SimpleScan(null, scanNumber, 1, rt, 0.0, 1, null, dataPoints,
-            MassSpectrumType.CENTROIDED, PolarityType.POSITIVE,
+        Scan scan = new SimpleScan(newMZmineFile, scanNumber, 1, rt, 0.0, 1, mzValues,
+            intensityValues, MassSpectrumType.CENTROIDED, PolarityType.POSITIVE,
             "ICP-" + mstype + " " + ions.substring(0, ions.length() - 2), mzRange);
 
         newMZmineFile.addScan(scan);
         scanNumber++;
       }
 
-      finalRawDataFile = newMZmineFile.finishWriting();
-
-      project.addFile(finalRawDataFile);
+      project.addFile(newMZmineFile);
 
     } catch (Exception e) {
       setErrorMessage(e.getMessage());

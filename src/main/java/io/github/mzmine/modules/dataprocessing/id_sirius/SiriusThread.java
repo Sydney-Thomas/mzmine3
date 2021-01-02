@@ -1,17 +1,17 @@
 /*
- * Copyright 2006-2018 The MZmine 2 Development Team
+ * Copyright 2006-2020 The MZmine Development Team
  *
- * This file is part of MZmine 2.
+ * This file is part of MZmine.
  *
- * MZmine 2 is free software; you can redistribute it and/or modify it under the terms of the GNU
+ * MZmine is free software; you can redistribute it and/or modify it under the terms of the GNU
  * General Public License as published by the Free Software Foundation; either version 2 of the
  * License, or (at your option) any later version.
  *
- * MZmine 2 is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
- * even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
+ * MZmine is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+ * the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
+ * Public License for more details.
  *
- * You should have received a copy of the GNU General Public License along with MZmine 2; if not,
+ * You should have received a copy of the GNU General Public License along with MZmine; if not,
  * write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301
  * USA
  */
@@ -29,8 +29,8 @@ import io.github.msdk.id.sirius.SiriusIdentificationMethod;
 import io.github.msdk.id.sirius.SiriusIonAnnotation;
 import io.github.msdk.util.IonTypeUtil;
 import io.github.mzmine.datamodel.IonizationType;
-import io.github.mzmine.datamodel.PeakListRow;
 import io.github.mzmine.datamodel.Scan;
+import io.github.mzmine.datamodel.features.FeatureListRow;
 import io.github.mzmine.datamodel.impl.MZmineToMSDKMsScan;
 import io.github.mzmine.main.MZmineCore;
 import io.github.mzmine.parameters.ParameterSet;
@@ -65,12 +65,13 @@ import org.slf4j.LoggerFactory;
 public class SiriusThread implements Runnable {
   private static final Logger logger = LoggerFactory.getLogger(SiriusThread.class);
 
-  // Use executor to run Sirius Identification Method as an Interruptable thread.
+  // Use executor to run Sirius Identification Method as an Interruptable
+  // thread.
   // Otherwise it may compute for too long (or even forever).
   private static final ExecutorService service = Executors.newSingleThreadExecutor();
 
   // Identification params
-  private final PeakListRow peakListRow;
+  private final FeatureListRow peakListRow;
   private final String massListName;
   private final IonizationType ionType;
   private final MolecularFormulaRange range;
@@ -96,7 +97,7 @@ public class SiriusThread implements Runnable {
    * @param parameters
    * @param latch
    */
-  public SiriusThread(PeakListRow peakListRow, ParameterSet parameters, Semaphore semaphore,
+  public SiriusThread(FeatureListRow peakListRow, ParameterSet parameters, Semaphore semaphore,
       CountDownLatch latch, PeakListIdentificationTask task) {
     ionType = parameters.getParameter(PeakListIdentificationParameters.ionizationType).getValue();
     range = parameters.getParameter(PeakListIdentificationParameters.ELEMENTS).getValue();
@@ -126,9 +127,8 @@ public class SiriusThread implements Runnable {
 
     try {
 
-      Scan ms1Scan = peakListRow.getBestPeak().getRepresentativeScan();
+      Scan ms1Scan = peakListRow.getBestFeature().getRepresentativeScan();
       Collection<Scan> top10ms2Scans = ScanUtils.selectBestMS2Scans(peakListRow, massListName, 10);
-
 
       // Convert to MSDK data model
       ms1list.add(new MZmineToMSDKMsScan(ms1Scan));
@@ -156,7 +156,8 @@ public class SiriusThread implements Runnable {
       final SiriusIdentificationMethod method = new SiriusIdentificationMethod(ms1list, ms2list,
           peakListRow.getAverageMZ(), siriusIon, siriusCandidates, constraints, deviationPpm);
 
-      // On some spectra it may never stop (halting problem), that's why interruptable thread is
+      // On some spectra it may never stop (halting problem), that's why
+      // interruptable thread is
       // used
       final Future<List<IonAnnotation>> f = service.submit(() -> {
         return method.execute();

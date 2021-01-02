@@ -15,6 +15,13 @@
  */
 package io.github.mzmine.util.adap;
 
+import io.github.mzmine.datamodel.features.Feature;
+import io.github.mzmine.datamodel.features.FeatureListRow;
+import io.github.mzmine.datamodel.features.ModularFeature;
+import java.util.Map.Entry;
+import java.util.NavigableMap;
+import java.util.TreeMap;
+import javax.annotation.Nonnull;
 import com.google.common.collect.Range;
 import dulab.adap.datamodel.BetterPeak;
 import dulab.adap.datamodel.Chromatogram;
@@ -22,25 +29,11 @@ import dulab.adap.datamodel.Component;
 import dulab.adap.datamodel.Peak;
 import dulab.adap.datamodel.PeakInfo;
 import io.github.mzmine.datamodel.DataPoint;
-import io.github.mzmine.datamodel.Feature;
+import io.github.mzmine.datamodel.FeatureStatus;
 import io.github.mzmine.datamodel.IsotopePattern;
-import io.github.mzmine.datamodel.PeakList;
-import io.github.mzmine.datamodel.PeakListRow;
 import io.github.mzmine.datamodel.RawDataFile;
-import io.github.mzmine.datamodel.Scan;
+import io.github.mzmine.datamodel.features.ModularFeatureList;
 import io.github.mzmine.datamodel.impl.SimpleDataPoint;
-import io.github.mzmine.datamodel.impl.SimpleFeature;
-
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.NavigableMap;
-import java.util.Set;
-import java.util.TreeMap;
-import javax.annotation.Nonnull;
 
 /**
  *
@@ -48,8 +41,8 @@ import javax.annotation.Nonnull;
  */
 public class ADAPInterface {
 
-  public static Component getComponent(final PeakListRow row) {
-    if (row.getNumberOfPeaks() == 0)
+  public static Component getComponent(final FeatureListRow row) {
+    if (row.getNumberOfFeatures() == 0)
       throw new IllegalArgumentException("No peaks found");
 
     NavigableMap<Double, Double> spectrum = new TreeMap<>();
@@ -62,15 +55,15 @@ public class ADAPInterface {
     }
 
     // Read Chromatogram
-    final Feature peak = row.getBestPeak();
-    final RawDataFile dataFile = peak.getDataFile();
+    final Feature peak = row.getBestFeature();
+    final RawDataFile dataFile = peak.getRawDataFile();
 
     NavigableMap<Double, Double> chromatogram = new TreeMap<>();
 
     for (final int scan : peak.getScanNumbers()) {
       final DataPoint dataPoint = peak.getDataPoint(scan);
       if (dataPoint != null)
-        chromatogram.put(dataFile.getScan(scan).getRetentionTime(), dataPoint.getIntensity());
+        chromatogram.put((double) dataFile.getScan(scan).getRetentionTime(), dataPoint.getIntensity());
     }
 
     return new Component(null,
@@ -79,7 +72,7 @@ public class ADAPInterface {
   }
 
   @Nonnull
-  public static Feature peakToFeature(@Nonnull RawDataFile file, @Nonnull BetterPeak peak) {
+  public static ModularFeature peakToFeature(@Nonnull ModularFeatureList featureList, @Nonnull RawDataFile file, @Nonnull BetterPeak peak) {
 
     Chromatogram chromatogram = peak.chromatogram;
 
@@ -110,16 +103,15 @@ public class ADAPInterface {
     for (double intensity : chromatogram.ys)
       dataPoints[count++] = new SimpleDataPoint(peak.getMZ(), intensity);
 
-    return new SimpleFeature(file, peak.getMZ(), peak.getRetTime(), peak.getIntensity(), area,
-        scanNumbers, dataPoints, Feature.FeatureStatus.ESTIMATED, representativeScan,
-        representativeScan, new int[]{},
-        Range.closed(peak.getFirstRetTime(), peak.getLastRetTime()),
+    return new ModularFeature(featureList, file, peak.getMZ(), (float) peak.getRetTime(), (float) peak.getIntensity(),
+        (float) area, scanNumbers, dataPoints, FeatureStatus.ESTIMATED, representativeScan, representativeScan,
+        new int[] {}, Range.closed((float) peak.getFirstRetTime(), (float) peak.getLastRetTime()),
         Range.closed(peak.getMZ() - 0.01, peak.getMZ() + 0.01),
-        Range.closed(0.0, peak.getIntensity()));
+        Range.closed(0.f, (float) peak.getIntensity()));
   }
 
   @Nonnull
-  public static Feature peakToFeature(@Nonnull RawDataFile file, @Nonnull Peak peak) {
+  public static Feature peakToFeature(@Nonnull ModularFeatureList featureList, @Nonnull RawDataFile file, @Nonnull Peak peak) {
 
     NavigableMap<Double, Double> chromatogram = peak.getChromatogram();
 
@@ -132,11 +124,9 @@ public class ADAPInterface {
       ++index;
     }
 
-    BetterPeak betterPeak = new BetterPeak(
-        peak.getInfo().peakID,
-        new Chromatogram(retTimes, intensities),
-        peak.getInfo());
+    BetterPeak betterPeak = new BetterPeak(peak.getInfo().peakID,
+        new Chromatogram(retTimes, intensities), peak.getInfo());
 
-    return peakToFeature(file, betterPeak);
+    return peakToFeature(featureList, file, betterPeak);
   }
 }

@@ -1,17 +1,17 @@
 /*
  * Copyright 2006-2015 The du-lab Development Team
  *
- * This file is part of MZmine 2.
+ * This file is part of MZmine.
  *
- * MZmine 2 is free software; you can redistribute it and/or modify it under the terms of the GNU
+ * MZmine is free software; you can redistribute it and/or modify it under the terms of the GNU
  * General Public License as published by the Free Software Foundation; either version 2 of the
  * License, or (at your option) any later version.
  *
- * MZmine 2 is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
- * even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
+ * MZmine is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+ * the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
+ * Public License for more details.
  *
- * You should have received a copy of the GNU General Public License along with MZmine 2; if not,
+ * You should have received a copy of the GNU General Public License along with MZmine; if not,
  * write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301
  * USA
  */
@@ -40,7 +40,8 @@ import io.github.mzmine.util.ExitCode;
  */
 public class ADAPDetectorParameters extends SimpleParameterSet {
 
-  // private static final NumberFormat numberFormat = NumberFormat.getInstance();
+  // private static final NumberFormat numberFormat =
+  // NumberFormat.getInstance();
 
   private static final SNEstimatorChoice[] SNESTIMATORS =
       {new IntensityWindowsSNEstimator(), new WaveletCoefficientsSNEstimator()};
@@ -54,7 +55,8 @@ public class ADAPDetectorParameters extends SimpleParameterSet {
       "Upper and lower bounds of retention times to be used for setting the wavelet scales. Choose a range that that simmilar to the range of peak widths expected to be found from the data.",
       MZmineCore.getConfiguration().getRTFormat(), true, true, Range.closed(0.001, 0.1));
 
-  // public static final DoubleRangeParameter PEAK_SCALES = new DoubleRangeParameter(
+  // public static final DoubleRangeParameter PEAK_SCALES = new
+  // DoubleRangeParameter(
   // "Wavelet scales",
   // "Range wavelet widths (smallest, largest) in minutes", MZmineCore
   // .getConfiguration().getRTFormat(), Range.closed(0.25, 5.0));
@@ -77,7 +79,8 @@ public class ADAPDetectorParameters extends SimpleParameterSet {
 
   public ADAPDetectorParameters() {
 
-    // super(new Parameter[] { SN_THRESHOLD,SHARP_THRESHOLD, MIN_FEAT_HEIGHT, PEAK_DURATION, });
+    // super(new Parameter[] { SN_THRESHOLD,SHARP_THRESHOLD,
+    // MIN_FEAT_HEIGHT, PEAK_DURATION, });
     super(new Parameter[] {SN_THRESHOLD, SN_ESTIMATORS, MIN_FEAT_HEIGHT, COEF_AREA_THRESHOLD,
         PEAK_DURATION, RT_FOR_CWT_SCALES_DURATION});
 
@@ -85,7 +88,7 @@ public class ADAPDetectorParameters extends SimpleParameterSet {
   }
 
   @Override
-  public ExitCode showSetupDialog(Window parent, boolean valueCheckRequired) {
+  public ExitCode showSetupDialog(boolean valueCheckRequired) {
     String message = "<html>ADAP Module Disclaimer:"
         + "<br> If you use the  ADAP Chromatogram Deconvolution Module, please cite the "
         + "<a href=\"https://bmcbioinformatics.biomedcentral.com/articles/10.1186/1471-2105-11-395\">MZmine2 paper</a> and the following article:"
@@ -95,16 +98,18 @@ public class ADAPDetectorParameters extends SimpleParameterSet {
         + "</html>";
 
     final PeakResolverSetupDialog dialog =
-        new PeakResolverSetupDialog(parent, valueCheckRequired, this, ADAPDetector.class, message);
-    dialog.setVisible(true);
+        new PeakResolverSetupDialog(valueCheckRequired, this, ADAPDetector.class, message);
+    dialog.showAndWait();
     return dialog.getExitCode();
   }
 
-  // public ExitCode showSetupDialog(Window parent, boolean valueCheckRequired) {
+  // public ExitCode showSetupDialog( boolean
+  // valueCheckRequired) {
   //
-  // ParameterSetupDialog dialog = new ParameterSetupDialog(parent, valueCheckRequired, this,
+  // ParameterSetupDialog dialog = new ParameterSetupDialog(parent,
+  // valueCheckRequired, this,
   // message);
-  // dialog.setVisible(true);
+  // dialog.showAndWait();
   // return dialog.getExitCode();
   // }
 }

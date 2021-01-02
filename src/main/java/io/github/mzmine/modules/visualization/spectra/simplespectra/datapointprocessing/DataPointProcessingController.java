@@ -1,17 +1,17 @@
 /*
- * Copyright 2006-2018 The MZmine 2 Development Team
+ * Copyright 2006-2020 The MZmine Development Team
  * 
- * This file is part of MZmine 2.
+ * This file is part of MZmine.
  * 
- * MZmine 2 is free software; you can redistribute it and/or modify it under the terms of the GNU
+ * MZmine is free software; you can redistribute it and/or modify it under the terms of the GNU
  * General Public License as published by the Free Software Foundation; either version 2 of the
  * License, or (at your option) any later version.
  * 
- * MZmine 2 is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
- * even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
+ * MZmine is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+ * the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
+ * Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with MZmine 2; if not,
+ * You should have received a copy of the GNU General Public License along with MZmine; if not,
  * write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301
  * USA
  */
@@ -170,19 +170,21 @@ public class DataPointProcessingController {
       return;
     }
 
-    if (getForcedStatus() == ForcedControllerStatus.CANCEL || getStatus() == ControllerStatus.CANCELED) {
+    if (getForcedStatus() == ForcedControllerStatus.CANCEL
+        || getStatus() == ControllerStatus.CANCELED) {
       setResults(ProcessedDataPoint.convert(dp));
       logger
           .finest("Canceled controller, not starting new tasks. Results are set to latest array.");
       setStatus(ControllerStatus.CANCELED);
       return;
     }
-    
+
     List<String> err = new ArrayList<>();
-    if(!step.getParameterSet().checkParameterValues(err)) {
+    if (!step.getParameterSet().checkParameterValues(err)) {
       setResults(ProcessedDataPoint.convert(dp));
       setStatus(ControllerStatus.CANCELED);
-      logger.warning(step.getModule().getName() + " - Not all parameters set." + Arrays.toString(err.toArray(new String[0])));
+      logger.warning(step.getModule().getName() + " - Not all parameters set."
+          + Arrays.toString(err.toArray(new String[0])));
       return;
     }
 
@@ -200,7 +202,8 @@ public class DataPointProcessingController {
                 logger.warning("This should have been a DataPointProcessingTask.");
                 return;
               }
-              // logger.finest("Task status changed to " + newStatus.toString());
+              // logger.finest("Task status changed to " +
+              // newStatus.toString());
               switch (newStatus) {
                 case FINISHED:
                   if (queue.hasNextStep(step)) {
@@ -210,15 +213,16 @@ public class DataPointProcessingController {
                       MZmineProcessingStep<DataPointProcessingModule> next =
                           queue.getNextStep(step);
 
-                      // pass results to next task and start recursively
+                      // pass results to next task and start
+                      // recursively
                       ProcessedDataPoint[] result = ((DataPointProcessingTask) task).getResults();
                       ((DataPointProcessingTask) task).displayResults();
-                      
+
                       execute(result, next, plot);
                     } else {
                       logger.warning(
                           "This controller was already removed from the running list, although it "
-                          + "had not finished processing. Exiting");
+                              + "had not finished processing. Exiting");
                       break;
                     }
                   } else {
@@ -243,10 +247,10 @@ public class DataPointProcessingController {
             }
           });
 
-
       logger.finest("Start processing of " + t.getClass().getName());
       MZmineCore.getTaskController().addTask(t);
-      setCurrentTask((DataPointProcessingTask) t); // maybe we need this some time
+      setCurrentTask((DataPointProcessingTask) t); // maybe we need this
+                                                   // some time
       setCurrentStep(step);
     }
   }
@@ -268,7 +272,7 @@ public class DataPointProcessingController {
       setStatus(ControllerStatus.ERROR);
       return;
     }
-    
+
     setStatus(ControllerStatus.PROCESSING);
     logger.finest("Executing DataPointProcessingTasks.");
     execute(getDataPoints(), first, getPlot());

@@ -1,17 +1,17 @@
 /*
- * Copyright 2006-2018 The MZmine 2 Development Team
+ * Copyright 2006-2020 The MZmine Development Team
  * 
- * This file is part of MZmine 2.
+ * This file is part of MZmine.
  * 
- * MZmine 2 is free software; you can redistribute it and/or modify it under the terms of the GNU
+ * MZmine is free software; you can redistribute it and/or modify it under the terms of the GNU
  * General Public License as published by the Free Software Foundation; either version 2 of the
  * License, or (at your option) any later version.
  * 
- * MZmine 2 is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
- * even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
+ * MZmine is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+ * the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
+ * Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with MZmine 2; if not,
+ * You should have received a copy of the GNU General Public License along with MZmine; if not,
  * write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301
  * USA
  */
@@ -29,6 +29,13 @@
 
 package io.github.mzmine.modules.io.gnpsexport.fbmn;
 
+import io.github.mzmine.datamodel.features.Feature;
+import io.github.mzmine.datamodel.features.FeatureList;
+import io.github.mzmine.datamodel.features.FeatureListRow;
+import io.github.mzmine.datamodel.features.ModularFeature;
+import io.github.mzmine.datamodel.features.ModularFeatureList;
+import io.github.mzmine.datamodel.features.ModularFeatureListRow;
+import io.github.mzmine.util.FeatureUtils;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -36,13 +43,8 @@ import java.util.Arrays;
 import java.util.regex.Pattern;
 
 import io.github.mzmine.datamodel.DataPoint;
-import io.github.mzmine.datamodel.Feature;
 import io.github.mzmine.datamodel.MassList;
-import io.github.mzmine.datamodel.PeakList;
-import io.github.mzmine.datamodel.PeakListRow;
 import io.github.mzmine.datamodel.Scan;
-import io.github.mzmine.datamodel.impl.SimpleFeature;
-import io.github.mzmine.datamodel.impl.SimplePeakListRow;
 import io.github.mzmine.main.MZmineCore;
 import io.github.mzmine.modules.tools.msmsspectramerge.MergedSpectrum;
 import io.github.mzmine.modules.tools.msmsspectramerge.MsMsSpectraMergeModule;
@@ -50,7 +52,7 @@ import io.github.mzmine.modules.tools.msmsspectramerge.MsMsSpectraMergeParameter
 import io.github.mzmine.parameters.ParameterSet;
 import io.github.mzmine.taskcontrol.AbstractTask;
 import io.github.mzmine.taskcontrol.TaskStatus;
-import io.github.mzmine.util.PeakUtils;
+import javafx.collections.ObservableList;
 
 /**
  * Exports all files needed for GNPS
@@ -59,24 +61,26 @@ import io.github.mzmine.util.PeakUtils;
  *
  */
 public class GnpsFbmnExportTask extends AbstractTask {
-  private final PeakList[] peakLists;
+  private final FeatureList[] featureLists;
   private final File fileName;
   private final String plNamePattern = "{}";
   private int currentIndex = 0;
   private final MsMsSpectraMergeParameters mergeParameters;
-  
+
   private final String massListName;
 
   GnpsFbmnExportTask(ParameterSet parameters) {
-    this.peakLists =
-        parameters.getParameter(GnpsFbmnExportAndSubmitParameters.PEAK_LISTS).getValue().getMatchingPeakLists();
+    this.featureLists = parameters.getParameter(GnpsFbmnExportAndSubmitParameters.FEATURE_LISTS)
+        .getValue().getMatchingFeatureLists();
 
     this.fileName = parameters.getParameter(GnpsFbmnExportAndSubmitParameters.FILENAME).getValue();
 
-    this.massListName = parameters.getParameter(GnpsFbmnExportAndSubmitParameters.MASS_LIST).getValue();
+    this.massListName =
+        parameters.getParameter(GnpsFbmnExportAndSubmitParameters.MASS_LIST).getValue();
 
     if (parameters.getParameter(GnpsFbmnExportAndSubmitParameters.MERGE_PARAMETER).getValue()) {
-      mergeParameters = parameters.getParameter(GnpsFbmnExportAndSubmitParameters.MERGE_PARAMETER).getEmbeddedParameters();
+      mergeParameters = parameters.getParameter(GnpsFbmnExportAndSubmitParameters.MERGE_PARAMETER)
+          .getEmbeddedParameters();
     } else {
       mergeParameters = null;
     }
@@ -84,10 +88,10 @@ public class GnpsFbmnExportTask extends AbstractTask {
 
   @Override
   public double getFinishedPercentage() {
-    if (peakLists.length == 0)
+    if (featureLists.length == 0)
       return 1;
     else
-      return currentIndex / peakLists.length;
+      return currentIndex / featureLists.length;
   }
 
   @Override
@@ -98,14 +102,14 @@ public class GnpsFbmnExportTask extends AbstractTask {
     boolean substitute = fileName.getPath().contains(plNamePattern);
 
     // Process feature lists
-    for (PeakList peakList : peakLists) {
+    for (FeatureList featureList : featureLists) {
       currentIndex++;
 
       // Filename
       File curFile = fileName;
       if (substitute) {
         // Cleanup from illegal filename characters
-        String cleanPlName = peakList.getName().replaceAll("[^a-zA-Z0-9.-]", "_");
+        String cleanPlName = featureList.getName().replaceAll("[^a-zA-Z0-9.-]", "_");
         // Substitute
         String newFilename =
             fileName.getPath().replaceAll(Pattern.quote(plNamePattern), cleanPlName);
@@ -123,7 +127,7 @@ public class GnpsFbmnExportTask extends AbstractTask {
       }
 
       try {
-        export(peakList, writer, curFile);
+        export(featureList, writer, curFile);
       } catch (IOException e) {
         setStatus(TaskStatus.ERROR);
         setErrorMessage("Error while writing into file " + curFile + ": " + e.getMessage());
@@ -154,45 +158,48 @@ public class GnpsFbmnExportTask extends AbstractTask {
       setStatus(TaskStatus.FINISHED);
   }
 
-  private void export(PeakList peakList, FileWriter writer, File curFile) throws IOException {
+  private void export(FeatureList featureList, FileWriter writer, File curFile) throws IOException {
     final String newLine = System.lineSeparator();
 
-    for (PeakListRow row : peakList.getRows()) {
+    ObservableList<FeatureListRow> rows = featureList.getRows();
+    for (int i = 0; i < rows.size(); i++) {
+      ModularFeatureListRow row = (ModularFeatureListRow) rows.get(i);
       String rowID = Integer.toString(row.getID());
 
       String retTimeInSeconds = Double.toString(Math.round(row.getAverageRT() * 60 * 100) / 100.);
       // Get the MS/MS scan number
-      Feature bestPeak = row.getBestPeak();
-      if (bestPeak == null)
+      Feature bestFeature = row.getBestFeature();
+      if (bestFeature == null)
         continue;
-      int msmsScanNumber = bestPeak.getMostIntenseFragmentScanNumber();
+      int msmsScanNumber = bestFeature.getMostIntenseFragmentScanNumber();
       if (rowID != null) {
-        PeakListRow copyRow = copyPeakRow(row);
-        // Best peak always exists, because feature list row has at least one peak
-        bestPeak = copyRow.getBestPeak();
+        // TODO why?
+        FeatureListRow copyRow = new ModularFeatureListRow((ModularFeatureList)row.getFeatureList(), row, true);
+        // Best feature always exists, because feature list row has at
+        // least one feature
+        bestFeature = copyRow.getBestFeature();
 
         // Get the MS/MS scan number
 
-        msmsScanNumber = bestPeak.getMostIntenseFragmentScanNumber();
+        msmsScanNumber = bestFeature.getMostIntenseFragmentScanNumber();
         while (msmsScanNumber < 1) {
-          copyRow.removePeak(bestPeak.getDataFile());
-          if (copyRow.getPeaks().length == 0)
+          copyRow.removeFeature(bestFeature.getRawDataFile());
+          if (copyRow.getFeatures().size() == 0)
             break;
 
-          bestPeak = copyRow.getBestPeak();
-          msmsScanNumber = bestPeak.getMostIntenseFragmentScanNumber();
+          bestFeature = copyRow.getBestFeature();
+          msmsScanNumber = bestFeature.getMostIntenseFragmentScanNumber();
         }
       }
       if (msmsScanNumber >= 1) {
         // MS/MS scan must exist, because msmsScanNumber was > 0
-        Scan msmsScan = bestPeak.getDataFile().getScan(msmsScanNumber);
+        Scan msmsScan = bestFeature.getRawDataFile().getScan(msmsScanNumber);
 
         MassList massList = msmsScan.getMassList(massListName);
 
         if (massList == null) {
-          MZmineCore.getDesktop().displayErrorMessage(MZmineCore.getDesktop().getMainWindow(),
-                  "There is no mass list called " + massListName + " for MS/MS scan #" + msmsScanNumber
-                          + " (" + bestPeak.getDataFile() + ")");
+          MZmineCore.getDesktop().displayErrorMessage("There is no mass list called " + massListName
+                  + " for MS/MS scan #" + msmsScanNumber + " (" + bestFeature.getRawDataFile() + ")");
           return;
         }
 
@@ -223,18 +230,19 @@ public class GnpsFbmnExportTask extends AbstractTask {
         writer.write("MSLEVEL=2" + newLine);
         DataPoint[] dataPoints = massList.getDataPoints();
         if (mergeParameters != null) {
-          MsMsSpectraMergeModule merger = MZmineCore.getModuleInstance(MsMsSpectraMergeModule.class);
-          MergedSpectrum spectrum = merger.getBestMergedSpectrum(mergeParameters, row, massListName);
-          if (spectrum!=null) {
+          MsMsSpectraMergeModule merger =
+                  MZmineCore.getModuleInstance(MsMsSpectraMergeModule.class);
+          MergedSpectrum spectrum =
+                  merger.getBestMergedSpectrum(mergeParameters, row, massListName);
+          if (spectrum != null) {
             dataPoints = spectrum.data;
             writer.write("MERGED_STATS=");
             writer.write(spectrum.getMergeStatsDescription());
             writer.write(newLine);
           }
         }
-        for (DataPoint peak : dataPoints) {
-          writer.write(peak.getMZ() + " " + peak.getIntensity()
-                  + newLine);
+        for (DataPoint feature : dataPoints) {
+          writer.write(feature.getMZ() + " " + feature.getIntensity() + newLine);
         }
 
         writer.write("END IONS" + newLine);
@@ -245,28 +253,7 @@ public class GnpsFbmnExportTask extends AbstractTask {
   }
 
   public String getTaskDescription() {
-    return "Exporting GNPS of feature list(s) " + Arrays.toString(peakLists) + " to MGF file(s)";
-  }
-
-  /**
-   * Create a copy of a feature list row.
-   */
-  private static PeakListRow copyPeakRow(final PeakListRow row) {
-    // Copy the feature list row.
-    final PeakListRow newRow = new SimplePeakListRow(row.getID());
-    PeakUtils.copyPeakListRowProperties(row, newRow);
-
-    // Copy the peaks.
-    for (final Feature peak : row.getPeaks()) {
-
-
-      final Feature newPeak = new SimpleFeature(peak);
-      PeakUtils.copyPeakProperties(peak, newPeak);
-      newRow.addPeak(peak.getDataFile(), newPeak);
-
-    }
-
-    return newRow;
+    return "Exporting GNPS of feature list(s) " + Arrays.toString(featureLists) + " to MGF file(s)";
   }
 
 }

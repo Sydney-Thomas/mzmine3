@@ -1,17 +1,17 @@
 /*
- * Copyright 2006-2018 The MZmine 2 Development Team
+ * Copyright 2006-2020 The MZmine Development Team
  * 
- * This file is part of MZmine 2.
+ * This file is part of MZmine.
  * 
- * MZmine 2 is free software; you can redistribute it and/or modify it under the terms of the GNU
+ * MZmine is free software; you can redistribute it and/or modify it under the terms of the GNU
  * General Public License as published by the Free Software Foundation; either version 2 of the
  * License, or (at your option) any later version.
  * 
- * MZmine 2 is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
- * even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
+ * MZmine is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+ * the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
+ * Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with MZmine 2; if not,
+ * You should have received a copy of the GNU General Public License along with MZmine; if not,
  * write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301
  * USA
  */
@@ -197,7 +197,6 @@ public class ChartLogics {
     return new Point2D.Double(p2.getX() - p.getX(), p.getY() - p2.getY());
   }
 
-
   /**
    * Data width to pixel width on screen
    * 
@@ -216,7 +215,6 @@ public class ChartLogics {
 
     return width2D;
   }
-
 
   /**
    * Calculates the size of a chart for a given fixed plot width Domain and Range axes need to share
@@ -285,7 +283,8 @@ public class ChartLogics {
     // paint and get closer
     try {
       for (int i = 0; i < iterations; i++) {
-        // paint on ghost panel with estimated height (if copy panel==true)
+        // paint on ghost panel with estimated height (if copy
+        // panel==true)
         myChart.setSize((int) estimatedChartWidth, (int) estimatedChartHeight);
         myChart.paintImmediately(myChart.getBounds());
 
@@ -294,9 +293,11 @@ public class ChartLogics {
         Rectangle2D dataArea = info.getPlotInfo().getDataArea();
         Rectangle2D chartArea = info.getChartArea();
 
-        // // calc title space: will be added later to the right plot size
+        // // calc title space: will be added later to the right plot
+        // size
         // double titleWidth = chartArea.getWidth()-dataArea.getWidth();
-        // double titleHeight = chartArea.getHeight()-dataArea.getHeight();
+        // double titleHeight =
+        // chartArea.getHeight()-dataArea.getHeight();
 
         // calc width and height
         estimatedChartWidth = estimatedChartWidth - dataArea.getWidth() + plotWidth;
@@ -359,7 +360,8 @@ public class ChartLogics {
       p.add(myChart, BorderLayout.CENTER);
     try {
       for (int i = 0; i < iterations; i++) {
-        // paint on ghost panel with estimated height (if copy panel==true)
+        // paint on ghost panel with estimated height (if copy
+        // panel==true)
         myChart.setSize((int) chartWidth, (int) estimatedHeight);
         myChart.paintImmediately(myChart.getBounds());
 
@@ -444,7 +446,6 @@ public class ChartLogics {
     Rectangle2D dataArea = info.getPlotInfo().getDataArea();
     Rectangle2D chartArea = info.getChartArea();
 
-
     // calc title space: will be added later to the right plot size
     double titleWidth = chartArea.getWidth() - dataArea.getWidth();
     double titleHeight = chartArea.getHeight() - dataArea.getHeight();
@@ -490,7 +491,6 @@ public class ChartLogics {
     Rectangle2D dataArea = info.getPlotInfo().getDataArea();
     Rectangle2D chartArea = info.getChartArea();
 
-
     // calc title space: will be added later to the right plot size
     double titleWidth = chartArea.getWidth() - dataArea.getWidth();
     double titleHeight = chartArea.getHeight() - dataArea.getHeight();
@@ -511,7 +511,8 @@ public class ChartLogics {
     double realPW = realPH / y.getLength() * x.getLength();
 
     double width = realPW + titleWidth;
-    // if width is higher than given chartWidth then calc height for chartWidth
+    // if width is higher than given chartWidth then calc height for
+    // chartWidth
     if (width > chartWidth) {
       // calc right plot size with axis dim.
       // real plot width is given by factor;
@@ -528,8 +529,6 @@ public class ChartLogics {
       return new Dimension((int) width, (int) chartHeight);
     }
   }
-
-
 
   /**
    * 
@@ -570,7 +569,6 @@ public class ChartLogics {
   public static void setZoomAxis(ValueAxis axis, Range zoom) {
     axis.setRange(zoom);
   }
-
 
   /**
    * Auto range the range axis
@@ -684,11 +682,13 @@ public class ChartLogics {
     // Range auto = axis.getDefaultAutoRange();
     // if(range.getLowerBound()<auto.getLowerBound()){
     // double negative = range.getLowerBound()-auto.getLowerBound();
-    // range = new Range(auto.getLowerBound(), range.getUpperBound()-negative);
+    // range = new Range(auto.getLowerBound(),
+    // range.getUpperBound()-negative);
     // }
     // if(range.getUpperBound()>auto.getUpperBound()) {
     // double positive = range.getUpperBound()-auto.getUpperBound();
-    // range = new Range(range.getLowerBound()-positive, auto.getUpperBound());
+    // range = new Range(range.getLowerBound()-positive,
+    // auto.getUpperBound());
     // }
     return range;
   }

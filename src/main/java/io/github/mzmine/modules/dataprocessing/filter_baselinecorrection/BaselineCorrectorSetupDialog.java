@@ -1,27 +1,25 @@
 /*
- * Copyright 2006-2018 The MZmine 2 Development Team
- * 
- * This file is part of MZmine 2.
- * 
- * MZmine 2 is free software; you can redistribute it and/or modify it under the terms of the GNU
+ * Copyright 2006-2020 The MZmine Development Team
+ *
+ * This file is part of MZmine.
+ *
+ * MZmine is free software; you can redistribute it and/or modify it under the terms of the GNU
  * General Public License as published by the Free Software Foundation; either version 2 of the
  * License, or (at your option) any later version.
- * 
- * MZmine 2 is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
- * even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- * 
- * You should have received a copy of the GNU General Public License along with MZmine 2; if not,
+ *
+ * MZmine is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+ * the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
+ * Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with MZmine; if not,
  * write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301
  * USA
  */
 
 package io.github.mzmine.modules.dataprocessing.filter_baselinecorrection;
 
-import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.Container;
-import java.awt.Window;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.io.IOException;
@@ -30,49 +28,38 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import javax.swing.BorderFactory;
-import javax.swing.JProgressBar;
-import javax.swing.SwingUtilities;
-import javax.swing.border.Border;
-
 import org.jfree.data.xy.XYDataset;
 import org.jfree.data.xy.XYSeries;
 import org.jfree.data.xy.XYSeriesCollection;
-
 import com.google.common.collect.Range;
-
 import io.github.mzmine.datamodel.DataPoint;
 import io.github.mzmine.datamodel.RawDataFile;
 import io.github.mzmine.datamodel.Scan;
 import io.github.mzmine.main.MZmineCore;
-import io.github.mzmine.modules.visualization.tic.TICDataSet;
-import io.github.mzmine.modules.visualization.tic.TICPlot;
-import io.github.mzmine.modules.visualization.tic.TICPlotType;
+import io.github.mzmine.modules.visualization.chromatogram.TICDataSet;
+import io.github.mzmine.modules.visualization.chromatogram.TICPlot;
+import io.github.mzmine.modules.visualization.chromatogram.TICPlotType;
 import io.github.mzmine.parameters.ParameterSet;
 import io.github.mzmine.parameters.dialogs.ParameterSetupDialogWithChromatogramPreview;
 import io.github.mzmine.parameters.parametertypes.selectors.ScanSelection;
 import io.github.mzmine.taskcontrol.AbstractTask;
 import io.github.mzmine.taskcontrol.TaskStatus;
-import io.github.mzmine.util.R.REngineType;
 import io.github.mzmine.util.R.RSessionWrapper;
 import io.github.mzmine.util.R.RSessionWrapperException;
+import javafx.application.Platform;
+import javafx.scene.control.ProgressBar;
 
 /**
  * @description This class extends ParameterSetupDialogWithChromatogramPreview class. This is used
  *              to preview how the selected baseline correction method and its parameters works over
  *              the raw data file.
- * 
+ *
  */
 public class BaselineCorrectorSetupDialog extends ParameterSetupDialogWithChromatogramPreview {
 
-  /**
-   * 
-   */
-  private static final long serialVersionUID = 1L;
 
   // Logger.
-  private static final Logger LOG =
+  private static final Logger logger =
       Logger.getLogger(ParameterSetupDialogWithChromatogramPreview.class.getName());
 
   private ParameterSet correctorParameters;
@@ -90,11 +77,9 @@ public class BaselineCorrectorSetupDialog extends ParameterSetupDialogWithChroma
 
       int keyCode = ke.getKeyCode();
       if (keyCode == KeyEvent.VK_ESCAPE) {
-
-        LOG.info("<ESC> Presssed.");
+        logger.info("<ESC> Presssed.");
         previewTask.kill();
-        hidePreview();
-
+        showPreview(false);
       }
     }
 
@@ -117,38 +102,31 @@ public class BaselineCorrectorSetupDialog extends ParameterSetupDialogWithChroma
     return compList;
   }
 
-  private void set_VK_ESCAPE_KeyListener() {
-    // Set VK_ESCAPE KeyEvent listeners
-    List<Component> comps =
-        BaselineCorrectorSetupDialog.getAllComponents(BaselineCorrectorSetupDialog.this);
-    for (Component c : comps) {
-      c.addKeyListener(BaselineCorrectorSetupDialog.this.keyListener);
-    }
-  }
-
-  private void unset_VK_ESCAPE_KeyListener() {
-    // Remove VK_ESCAPE KeyEvent listeners
-    List<Component> comps =
-        BaselineCorrectorSetupDialog.getAllComponents(BaselineCorrectorSetupDialog.this);
-    for (Component c : comps) {
-      c.removeKeyListener(BaselineCorrectorSetupDialog.this.keyListener);
-    }
-  }
+  /*
+   * private void set_VK_ESCAPE_KeyListener() { // Set VK_ESCAPE KeyEvent listeners List<Component>
+   * comps = BaselineCorrectorSetupDialog.getAllComponents(BaselineCorrectorSetupDialog.this); for
+   * (Component c : comps) { c.addKeyListener(BaselineCorrectorSetupDialog.this.keyListener); } }
+   *
+   * private void unset_VK_ESCAPE_KeyListener() { // Remove VK_ESCAPE KeyEvent listeners
+   * List<Component> comps =
+   * BaselineCorrectorSetupDialog.getAllComponents(BaselineCorrectorSetupDialog.this); for
+   * (Component c : comps) { c.removeKeyListener(BaselineCorrectorSetupDialog.this.keyListener); } }
+   */
 
   /**
-   * 
+   *
    * @param correctorParameters Method specific parameters
    * @param correctorClass Chosen corrector to be instantiated
    */
-  public BaselineCorrectorSetupDialog(Window parent, boolean valueCheckRequired,
-      ParameterSet correctorParameters, Class<? extends BaselineCorrector> correctorClass) {
+  public BaselineCorrectorSetupDialog(boolean valueCheckRequired, ParameterSet correctorParameters,
+      Class<? extends BaselineCorrector> correctorClass) {
 
-    super(parent, valueCheckRequired, correctorParameters);
+    super(valueCheckRequired, correctorParameters);
 
     this.correctorParameters = correctorParameters;
 
     try {
-      this.baselineCorrector = correctorClass.newInstance();
+      this.baselineCorrector = correctorClass.getConstructor().newInstance();
     } catch (Exception e) {
       e.printStackTrace();
     }
@@ -169,16 +147,16 @@ public class BaselineCorrectorSetupDialog extends ParameterSetupDialogWithChroma
 
     private TICPlot ticPlot;
     private RawDataFile dataFile;
-    private Range<Double> rtRange, mzRange;
+    private Range<Double> mzRange;
+    private Range<Float> rtRange;
     private BaselineCorrectorSetupDialog dialog;
     private ProgressThread progressThread;
 
     private RSessionWrapper rSession;
     private boolean userCanceled;
 
-
     public PreviewTask(BaselineCorrectorSetupDialog dialog, TICPlot ticPlot, RawDataFile dataFile,
-        Range<Double> rtRange, Range<Double> mzRange) {
+        Range<Float> rtRange, Range<Double> mzRange) {
 
       this.dialog = dialog;
       this.ticPlot = ticPlot;
@@ -229,10 +207,10 @@ public class BaselineCorrectorSetupDialog extends ParameterSetupDialogWithChroma
         }
 
         // Set VK_ESCAPE KeyEvent listeners
-        set_VK_ESCAPE_KeyListener();
+        // set_VK_ESCAPE_KeyListener();
 
         // Reset TIC plot
-        ticPlot.removeAllTICDataSets();
+        ticPlot.removeAllDataSets();
         ticPlot.setPlotType(getPlotType());
 
         // Add the original raw data file
@@ -240,7 +218,7 @@ public class BaselineCorrectorSetupDialog extends ParameterSetupDialogWithChroma
         Scan scans[] = sel.getMatchingScans(dataFile);
 
         TICDataSet ticDataset = new TICDataSet(dataFile, scans, mzRange, null, getPlotType());
-        ticPlot.addTICDataset(ticDataset);
+        ticPlot.addTICDataSet(ticDataset);
 
         try {
 
@@ -258,11 +236,11 @@ public class BaselineCorrectorSetupDialog extends ParameterSetupDialogWithChroma
             scans = sel.getMatchingScans(newDataFile);
             final TICDataSet newDataset =
                 new TICDataSet(newDataFile, scans, mzRange, null, getPlotType());
-            ticPlot.addTICDataset(newDataset);
+            ticPlot.addTICDataSet(newDataset);
 
             // Show the trend line as well
             XYDataset tlDataset = createBaselineDataset(dataFile, newDataFile, getPlotType());
-            ticPlot.addTICDataset(tlDataset);
+            ticPlot.addDataSet(tlDataset);
           }
         } catch (IOException | RSessionWrapperException e) {
           if (!this.userCanceled) {
@@ -286,7 +264,7 @@ public class BaselineCorrectorSetupDialog extends ParameterSetupDialogWithChroma
       }
 
       // Task is over: Restore "parametersChanged" listeners
-      unset_VK_ESCAPE_KeyListener();
+      // nset_VK_ESCAPE_KeyListener();
 
       if (errorMsg != null) {
         // Handle error.
@@ -316,19 +294,19 @@ public class BaselineCorrectorSetupDialog extends ParameterSetupDialogWithChroma
         // Cancel task.
         this.cancel();
         // Release "ESC" listener.
-        unset_VK_ESCAPE_KeyListener();
+        // unset_VK_ESCAPE_KeyListener();
         // Abort current processing thread
         baselineCorrector.setAbortProcessing(dataFile, true);
 
-        LOG.info("Preview task canceled!");
+        logger.info("Preview task canceled!");
       }
 
     }
 
     /*
      * (non-Javadoc)
-     * 
-     * @see net.sf.mzmine.taskcontrol.Task#getTaskDescription()
+     *
+     * @see io.github.mzmine.taskcontrol.Task#getTaskDescription()
      */
     @Override
     public String getTaskDescription() {
@@ -337,8 +315,8 @@ public class BaselineCorrectorSetupDialog extends ParameterSetupDialogWithChroma
 
     /*
      * (non-Javadoc)
-     * 
-     * @see net.sf.mzmine.taskcontrol.Task#getFinishedPercentage()
+     *
+     * @see io.github.mzmine.taskcontrol.Task#getFinishedPercentage()
      */
     @Override
     public double getFinishedPercentage() {
@@ -350,10 +328,9 @@ public class BaselineCorrectorSetupDialog extends ParameterSetupDialogWithChroma
       setStatus(status);
       if (this.getStatus() == TaskStatus.ERROR) {
         setErrorMessage(errorMsg);
-        LOG.log(Level.SEVERE, "Baseline correction error", this.getErrorMessage());
-        MZmineCore.getDesktop().displayErrorMessage(BaselineCorrectorSetupDialog.this,
-            "Error of preview task ", this.getErrorMessage());
-        hidePreview();
+        logger.log(Level.SEVERE, "Baseline correction error", this.getErrorMessage());
+        MZmineCore.getDesktop().displayErrorMessage(this.getErrorMessage());
+        Platform.runLater(() -> showPreview(false));
       }
     }
   }
@@ -363,7 +340,7 @@ public class BaselineCorrectorSetupDialog extends ParameterSetupDialogWithChroma
     private RawDataFile dataFile;
     private PreviewTask previewTask;
     private BaselineCorrectorSetupDialog dialog;
-    private JProgressBar progressBar;
+    private ProgressBar progressBar;
 
     public ProgressThread(BaselineCorrectorSetupDialog dialog, PreviewTask previewTask,
         RawDataFile dataFile) {
@@ -375,46 +352,41 @@ public class BaselineCorrectorSetupDialog extends ParameterSetupDialogWithChroma
     @Override
     public void run() {
 
-      addProgessBar();
+      Platform.runLater(() -> addProgessBar());
       while ((this.previewTask != null && this.previewTask.getStatus() == TaskStatus.PROCESSING)) {
 
-        SwingUtilities.invokeLater(new Runnable() {
-          public void run() {
-            progressBar.setValue(
-                (int) Math.round(100.0 * baselineCorrector.getFinishedPercentage(dataFile)));
-          }
-        });
+        Platform.runLater(
+            () -> progressBar.setProgress(baselineCorrector.getFinishedPercentage(dataFile)));
         try {
           Thread.sleep(5);
         } catch (InterruptedException e) {
-          // TODO Auto-generated catch block
           e.printStackTrace();
         }
       }
       // Clear GUI stuffs
-      removeProgessBar();
-      unset_VK_ESCAPE_KeyListener();
+      Platform.runLater(() -> removeProgessBar());
+      // unset_VK_ESCAPE_KeyListener();
     }
 
     private void addProgessBar() {
       // Add progress bar
-      progressBar = new JProgressBar();
-      progressBar.setValue(25);
-      progressBar.setStringPainted(true);
-      Border border =
-          BorderFactory.createTitledBorder("Processing...     <Press \"ESC\" to cancel>    ");
-      progressBar.setBorder(border);
-      this.dialog.add(progressBar, BorderLayout.NORTH);
+      progressBar = new ProgressBar();
+      progressBar.setProgress(0.25);
+      // progressBar.setetStringPainted(true);
+      // Border border =
+      // BorderFactory.createTitledBorder("Processing... <Press \"ESC\" to cancel> ");
+      // progressBar.setBorder(border);
+      dialog.mainPane.setTop(progressBar);
       // this.dialog.repaint();
       progressBar.setVisible(true);
-      this.dialog.pack();
+      // this.dialog.pack();
     }
 
     private void removeProgessBar() {
       // Remove progress bar
       progressBar.setVisible(false);
-      this.dialog.remove(progressBar);
-      this.dialog.pack();
+      dialog.mainPane.getChildren().remove(progressBar);
+      // this.dialog.pack();
     }
 
   }
@@ -423,7 +395,7 @@ public class BaselineCorrectorSetupDialog extends ParameterSetupDialogWithChroma
    * This function sets all the information into the plot chart
    */
   @Override
-  protected void loadPreview(TICPlot ticPlot, RawDataFile dataFile, Range<Double> rtRange,
+  protected void loadPreview(TICPlot ticPlot, RawDataFile dataFile, Range<Float> rtRange,
       Range<Double> mzRange) {
 
     boolean ready = true;
@@ -445,7 +417,7 @@ public class BaselineCorrectorSetupDialog extends ParameterSetupDialogWithChroma
       baselineCorrector.initProgress(dataFile);
       previewTask = new PreviewTask(this, ticPlot, dataFile, rtRange, mzRange);
       previewThread = new Thread(previewTask);
-      LOG.info("Launch preview task.");
+      logger.info("Launch preview task.");
       previewThread.start();
     }
   }
@@ -453,7 +425,7 @@ public class BaselineCorrectorSetupDialog extends ParameterSetupDialogWithChroma
   /**
    * Quick way to recover the baseline plot (by subtracting the corrected file from the original
    * one).
-   * 
+   *
    * @param dataFile original datafile
    * @param newDataFile corrected datafile
    * @param plotType expected plot type
@@ -478,14 +450,15 @@ public class BaselineCorrectorSetupDialog extends ParameterSetupDialogWithChroma
       new_sc = newDataFile.getScan(scanNumbers[scanIndex]);
 
       if (plotType == TICPlotType.BASEPEAK) {
-        dp = sc.getHighestDataPoint();
-        new_dp = new_sc.getHighestDataPoint();
-        if (dp == null) {
+        Double scanBP = sc.getBasePeakIntensity();
+        Double newScanBP = new_sc.getBasePeakIntensity();
+
+        if (scanBP == null) {
           intensity = 0.0;
-        } else if (new_dp == null) {
-          intensity = dp.getIntensity();
+        } else if (newScanBP == null) {
+          intensity = scanBP;
         } else {
-          intensity = dp.getIntensity() - new_dp.getIntensity();
+          intensity = scanBP - newScanBP;
         }
       } else {
         intensity = sc.getTIC() - new_sc.getTIC();
@@ -501,12 +474,12 @@ public class BaselineCorrectorSetupDialog extends ParameterSetupDialogWithChroma
 
   // /* (non-Javadoc)
   // * @see
-  // net.sf.mzmine.taskcontrol.TaskListener#statusChanged(net.sf.mzmine.taskcontrol.TaskEvent)
+  // io.github.mzmine.taskcontrol.TaskListener#statusChanged(io.github.mzmine.taskcontrol.TaskEvent)
   // */
   // @Override
   // public void statusChanged(TaskEvent e) {
   // if (e.getStatus() == TaskStatus.ERROR) {
-  // LOG.log(Level.SEVERE, "Baseline correction error",
+  // logger.log(Level.SEVERE, "Baseline correction error",
   // e.getSource().getErrorMessage());
   // MZmineCore.getDesktop().displayErrorMessage( "Error of preview task ",
   // e.getSource().getErrorMessage());

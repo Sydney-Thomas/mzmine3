@@ -1,17 +1,17 @@
 /*
- * Copyright 2006-2018 The MZmine 2 Development Team
+ * Copyright 2006-2020 The MZmine Development Team
  * 
- * This file is part of MZmine 2.
+ * This file is part of MZmine.
  * 
- * MZmine 2 is free software; you can redistribute it and/or modify it under the terms of the GNU
+ * MZmine is free software; you can redistribute it and/or modify it under the terms of the GNU
  * General Public License as published by the Free Software Foundation; either version 2 of the
  * License, or (at your option) any later version.
  * 
- * MZmine 2 is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
- * even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
+ * MZmine is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+ * the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
+ * Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with MZmine 2; if not,
+ * You should have received a copy of the GNU General Public License along with MZmine; if not,
  * write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301
  * USA
  */
@@ -50,7 +50,7 @@ import io.github.mzmine.util.ExitCode;
  *
  */
 public class GnpsFbmnExportAndSubmitModule implements MZmineProcessingModule {
-  private final Logger LOG = Logger.getLogger(getClass().getName());
+  private final Logger logger = Logger.getLogger(getClass().getName());
 
   private static final String MODULE_NAME = "Export/Submit to GNPS-FBMN";
   private static final String MODULE_DESCRIPTION =
@@ -80,7 +80,7 @@ public class GnpsFbmnExportAndSubmitModule implements MZmineProcessingModule {
 
   @Override
   public MZmineModuleCategory getModuleCategory() {
-    return MZmineModuleCategory.PEAKLISTEXPORT;
+    return MZmineModuleCategory.FEATURELISTEXPORT;
   }
 
   @Override
@@ -99,13 +99,11 @@ public class GnpsFbmnExportAndSubmitModule implements MZmineProcessingModule {
  * The GNPSExport module was designed for Feature-Based Molecular Networking on
  * [GNPS](https://gnps.ucsd.edu/ProteoSAFe/static/gnps-splash2.jsp). Please cite our preprint
  * [Nothias, L.F. et al bioRxiv 812404](https://www.biorxiv.org/content/10.1101/812404v1). [See the
- * documentation
- * here](https://ccms-ucsd.github.io/GNPSDocumentation/featurebasedmolecularnetworking/). [See the
- * tutorial on MZmine2 processing for
- * FBMN](https://ccms-ucsd.github.io/GNPSDocumentation/featurebasedmolecularnetworking-with-
- * mzmine2/).
- * ========================================================================================== If you
- * use the GNPSExport module, please cite MZmine papers and the GNPS article: Wang et al., [Nature
- * Biotechnology 34.8 (2016): 828-837](https://doi.org/10.1038/nbt.3597m).
- * ==========================================================================================
+ * documentation here](https://ccms-ucsd.github.io/GNPSDocumentation/
+ * featurebasedmolecularnetworking/). [See the tutorial on MZmine2 processing for
+ * FBMN](https://ccms-ucsd.github.io/GNPSDocumentation/ featurebasedmolecularnetworking-with-
+ * mzmine2/). =============================================================================
+ * ============= If you use the GNPSExport module, please cite MZmine papers and the GNPS article:
+ * Wang et al., [Nature Biotechnology 34.8 (2016): 828-837](https://doi.org/10.1038/nbt.3597m).
+ * ============================================================================= =============
  */

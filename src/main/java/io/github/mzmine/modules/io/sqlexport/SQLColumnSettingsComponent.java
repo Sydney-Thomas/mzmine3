@@ -1,166 +1,153 @@
 /*
- * Copyright 2006-2018 The MZmine 2 Development Team
- * 
- * This file is part of MZmine 2.
- * 
- * MZmine 2 is free software; you can redistribute it and/or modify it under the terms of the GNU
+ * Copyright 2006-2020 The MZmine Development Team
+ *
+ * This file is part of MZmine.
+ *
+ * MZmine is free software; you can redistribute it and/or modify it under the terms of the GNU
  * General Public License as published by the Free Software Foundation; either version 2 of the
  * License, or (at your option) any later version.
- * 
- * MZmine 2 is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
- * even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- * 
- * You should have received a copy of the GNU General Public License along with MZmine 2; if not,
+ *
+ * MZmine is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+ * the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
+ * Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with MZmine; if not,
  * write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301
  * USA
  */
 
 package io.github.mzmine.modules.io.sqlexport;
 
-import java.awt.BorderLayout;
-import java.awt.Color;
-import java.awt.Component;
-import java.awt.Dimension;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.event.ItemEvent;
-import java.awt.event.ItemListener;
-import java.awt.Font;
-
+import java.util.ArrayList;
+import java.util.Arrays;
+import javafx.collections.FXCollections;
+import javafx.event.ActionEvent;
+import javafx.geometry.Insets;
+import javafx.scene.control.Button;
+import javafx.scene.control.SelectionMode;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableView;
+import javafx.scene.control.cell.ComboBoxTableCell;
+import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.scene.control.cell.TextFieldTableCell;
+import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.VBox;
 import javax.annotation.Nonnull;
-import javax.swing.BorderFactory;
-import javax.swing.BoxLayout;
-import javax.swing.DefaultCellEditor;
-import javax.swing.JButton;
-import javax.swing.JComboBox;
-import javax.swing.JPanel;
-import javax.swing.JScrollPane;
-import javax.swing.JTable;
-import javax.swing.ListSelectionModel;
-import javax.swing.table.TableCellRenderer;
 
-import io.github.mzmine.util.GUIUtils;
+public class SQLColumnSettingsComponent extends BorderPane {
 
-public class SQLColumnSettingsComponent extends JPanel implements ActionListener {
+    @Nonnull
+    private SQLColumnSettings value;
+    private  TableView<SQLRowObject> columnsTable =new TableView<SQLRowObject>();
+    private final Button addColumnButton,removeColumnButton;
 
-  /**
-   * 
-   */
-  private static final long serialVersionUID = 1L;
-  private final JTable columnsTable;
-  private final JButton addColumnButton, removeColumnButton;
 
-  @Nonnull
-  private SQLColumnSettings value;
+    public SQLColumnSettingsComponent() {
+        columnsTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
 
-  public SQLColumnSettingsComponent() {
+        value = new SQLColumnSettings();
+        TableColumn<SQLRowObject,String> columnName=new TableColumn<SQLRowObject,String> (value.getColumnName(0));
+        TableColumn<SQLRowObject,SQLExportDataType>  columnType=new TableColumn<SQLRowObject,SQLExportDataType> (value.getColumnName(1));
+        TableColumn<SQLRowObject,String>  columnValue= new TableColumn<SQLRowObject,String> (value.getColumnName(2));
 
-    super(new BorderLayout());
+        columnName.setCellValueFactory(new PropertyValueFactory<>("Name")); //this is needed during connection to a database
+        columnType.setCellValueFactory(new PropertyValueFactory<>("Type"));
+        columnValue.setCellValueFactory(new PropertyValueFactory<>("Value"));
 
-    setBorder(BorderFactory.createEmptyBorder(0, 9, 0, 0));
+        columnsTable.getColumns().addAll(columnName,columnType,columnValue);  //added all the columns in the table
+        setValue(value);
+        columnsTable.setStyle("-fx-selection-bar: #3399FF; -fx-selection-bar-non-focused: #E3E3E3;"); //CSS color change on selection of row
 
-    value = new SQLColumnSettings();
 
-    // columnsTable = new JTable(value);
-    columnsTable = new JTable(value) {
-      /**
-       * 
-       */
-      private static final long serialVersionUID = 1L;
+        columnsTable.getSelectionModel().setSelectionMode(SelectionMode.SINGLE);
+        columnName.setSortable(false);
+        columnValue.setSortable(false);
+        columnType.setSortable(false);
 
-      public Component prepareRenderer(TableCellRenderer renderer, int row, int column) {
-        Component c = super.prepareRenderer(renderer, row, column);
-        if (!isCellEditable(row, column)) {
-          if (isCellSelected(row, column)) {
-            c.setBackground(Color.decode("#3399FF"));
-            c.setForeground(Color.white);
-          } else {
-            c.setBackground(Color.decode("#E3E3E3"));
-          }
-        } else {
-          if (isCellSelected(row, column)) {
-            c.setBackground(Color.decode("#3399FF"));
-            c.setForeground(Color.white);
-          } else {
-            c.setBackground(Color.white);
-            c.setForeground(Color.black);
-          }
+        columnName.setReorderable(false);
+        columnValue.setReorderable(false);
+        columnType.setReorderable(false);
+
+        columnsTable.setPrefSize(550, 220);
+        columnsTable.setFixedCellSize(columnsTable.getFixedCellSize()+20);
+        columnsTable.setStyle("-fx-font: 10 \"Plain\"");
+
+        //Setting action event on cells
+        columnsTable.getSelectionModel().setCellSelectionEnabled(true);  //individual cell selection enabled
+        columnsTable.setEditable(true);
+
+        //Editors on each cell
+      columnName.setCellFactory(TextFieldTableCell.<SQLRowObject>forTableColumn());
+      columnName.setOnEditCommit(event -> {
+        getValue().setValueAt(event.getNewValue(), event.getTablePosition().getRow(), 0);
+        setValue(getValue()); //refresh the table
+      });
+
+      columnValue.setCellFactory(TextFieldTableCell.<SQLRowObject>forTableColumn());
+      columnValue.setOnEditCommit(event -> {
+        getValue().setValueAt(event.getNewValue().toUpperCase(), event.getTablePosition().getRow(), 2);
+        setValue(getValue()); //refresh the table
+      });
+
+      ArrayList<SQLExportDataType> exportDataTypeValues=new ArrayList<SQLExportDataType>(Arrays.asList(SQLExportDataType.values()));
+
+      columnType.setCellFactory(ComboBoxTableCell.forTableColumn(FXCollections.observableArrayList(SQLExportDataType.values())));
+      columnType.setOnEditCommit(event -> {
+        boolean selected = event.getNewValue().isSelectableValue();
+        if(!selected){ //case of  invalid(Title) datatype selection
+          getValue().setValueAt(exportDataTypeValues.get(exportDataTypeValues.indexOf(event.getNewValue())+1),event.getTablePosition().getRow(),1);
         }
-        return c;
-      }
-    };
-
-    columnsTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-    columnsTable.setRowSelectionAllowed(true);
-    columnsTable.setColumnSelectionAllowed(false);
-    columnsTable.getTableHeader().setReorderingAllowed(false);
-    columnsTable.getTableHeader().setResizingAllowed(false);
-    columnsTable.setPreferredScrollableViewportSize(new Dimension(550, 220));
-
-    columnsTable.setRowHeight(columnsTable.getRowHeight() + 5);
-    columnsTable.setFont(new Font(getFont().getName(), Font.PLAIN, 13));
-
-    JComboBox<SQLExportDataType> dataTypeCombo =
-        new JComboBox<SQLExportDataType>(SQLExportDataType.values());
-    dataTypeCombo.setMaximumRowCount(22);
-    DefaultCellEditor dataTypeEditor = new DefaultCellEditor(dataTypeCombo);
-    columnsTable.setDefaultEditor(SQLExportDataType.class, dataTypeEditor);
-
-    // Create an ItemListener for the JComboBox component.
-    dataTypeCombo.addItemListener(new ItemListener() {
-      @Override
-      public void itemStateChanged(ItemEvent e) {
-        JComboBox<?> dataTypeCombo = (JComboBox<?>) e.getSource();
-        Boolean selected =
-            ((SQLExportDataType) dataTypeCombo.getSelectedItem()).isSelectableValue();
-        if (!selected && e.getStateChange() == 1) {
-          // Invalid selection - selection of title rows in JComboBox
-          // is not allowed
-          dataTypeCombo.setSelectedIndex(dataTypeCombo.getSelectedIndex() + 1);
+        else {
+          getValue().setValueAt(event.getNewValue(), event.getTablePosition().getRow(), 1);
         }
-      }
-    });
+        setValue(getValue());
+      });
 
-    JScrollPane elementsScroll = new JScrollPane(columnsTable);
-    add(elementsScroll, BorderLayout.CENTER);
+        // Add buttons
+        VBox buttonsPanel=new VBox(20);
+        addColumnButton=new Button("Add");
+        removeColumnButton=new Button("Remove");
+        addColumnButton.setOnAction(this::actionPerformed);
+        removeColumnButton.setOnAction(this::actionPerformed);
+        buttonsPanel.getChildren().addAll(addColumnButton,removeColumnButton);
 
-    // Add buttons
-    JPanel buttonsPanel = new JPanel();
-    BoxLayout buttonsPanelLayout = new BoxLayout(buttonsPanel, BoxLayout.Y_AXIS);
-    buttonsPanel.setLayout(buttonsPanelLayout);
-    addColumnButton = GUIUtils.addButton(buttonsPanel, "Add", null, this);
-    removeColumnButton = GUIUtils.addButton(buttonsPanel, "Remove", null, this);
-    add(buttonsPanel, BorderLayout.EAST);
 
-  }
+        this.setRight(buttonsPanel);
+        this.setCenter(columnsTable);
+        BorderPane.setMargin(buttonsPanel, new Insets(10));
 
-  public void actionPerformed(ActionEvent event) {
-
-    Object src = event.getSource();
-
-    if (src == addColumnButton) {
-      value.addNewRow();
     }
 
-    if (src == removeColumnButton) {
-      int selectedRow = columnsTable.getSelectedRow();
-      if (selectedRow < 0)
-        return;
-      value.removeRow(selectedRow);
+
+    public void actionPerformed(ActionEvent event) {
+
+        Object src = event.getSource();
+        if (src == addColumnButton) {
+            value.addNewRow();
+        }
+
+        if (src == removeColumnButton) {
+            SQLRowObject selectedRow= columnsTable.getSelectionModel().getSelectedItem();
+            if (selectedRow ==null)
+                return;
+            value.removeRow(selectedRow);
+        }
+        setValue(value);
+
     }
-  }
 
-  void setValue(@Nonnull SQLColumnSettings newValue) {
+    void setValue(@Nonnull SQLColumnSettings newValue) {
 
-    // Clear the table
-    this.value = newValue;
-    columnsTable.setModel(newValue);
-  }
+        // Clear the table
+        this.value = newValue;
+        columnsTable.setItems(value.getTableData());
+        columnsTable.refresh();
+    }
 
-  @Nonnull
-  synchronized SQLColumnSettings getValue() {
-    return value;
-  }
-
+    @Nonnull
+    synchronized SQLColumnSettings getValue() {
+        return value;
+    }
 }
+
+

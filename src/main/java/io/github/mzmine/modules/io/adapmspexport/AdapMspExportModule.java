@@ -31,7 +31,6 @@ import io.github.mzmine.util.ExitCode;
  * @author Du-Lab Team <dulab.binf@gmail.com>
  */
 
-
 public class AdapMspExportModule implements MZmineProcessingModule {
   private static final String MODULE_NAME = "Export to MSP file (ADAP)";
   private static final String MODULE_DESCRIPTION =
@@ -59,7 +58,7 @@ public class AdapMspExportModule implements MZmineProcessingModule {
 
   @Override
   public @Nonnull MZmineModuleCategory getModuleCategory() {
-    return MZmineModuleCategory.PEAKLISTEXPORT;
+    return MZmineModuleCategory.FEATURELISTEXPORT;
   }
 
   @Override

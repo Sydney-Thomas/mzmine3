@@ -1,17 +1,17 @@
 /*
- * Copyright 2006-2018 The MZmine 2 Development Team
+ * Copyright 2006-2020 The MZmine Development Team
  * 
- * This file is part of MZmine 2.
+ * This file is part of MZmine.
  * 
- * MZmine 2 is free software; you can redistribute it and/or modify it under the terms of the GNU
+ * MZmine is free software; you can redistribute it and/or modify it under the terms of the GNU
  * General Public License as published by the Free Software Foundation; either version 2 of the
  * License, or (at your option) any later version.
  * 
- * MZmine 2 is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
- * even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
+ * MZmine is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+ * the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
+ * Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with MZmine 2; if not,
+ * You should have received a copy of the GNU General Public License along with MZmine; if not,
  * write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301
  * USA
  */
@@ -50,7 +50,7 @@ import io.github.mzmine.util.files.FileAndPathUtil;
  */
 public class GNPSUtils {
   // Logger.
-  private static final Logger LOG = Logger.getLogger(GNPSUtils.class.getName());
+  private static final Logger logger = Logger.getLogger(GNPSUtils.class.getName());
 
   public static final String FBMN_SUBMIT_SITE =
       "https://gnps-quickstart.ucsd.edu/uploadanalyzefeaturenetworking";
@@ -91,7 +91,6 @@ public class GNPSUtils {
     } else
       return "";
   }
-
 
   /**
    * Submit feature-based molecular networking (FBMN) job to GNPS
@@ -136,13 +135,13 @@ public class GNPSUtils {
         HttpPost httppost = new HttpPost(FBMN_SUBMIT_SITE);
         httppost.setEntity(entity);
 
-        LOG.info("Submitting GNPS job " + httppost.getRequestLine());
+        logger.info("Submitting GNPS job " + httppost.getRequestLine());
         CloseableHttpResponse response = httpclient.execute(httppost);
         try {
-          LOG.info("GNPS submit response status: " + response.getStatusLine());
+          logger.info("GNPS submit response status: " + response.getStatusLine());
           HttpEntity resEntity = response.getEntity();
           if (resEntity != null) {
-            LOG.info("GNPS submit response content length: " + resEntity.getContentLength());
+            logger.info("GNPS submit response content length: " + resEntity.getContentLength());
 
             // open job website
             if (openWebsite)
@@ -169,17 +168,16 @@ public class GNPSUtils {
       try {
         JSONObject res = new JSONObject(EntityUtils.toString(resEntity));
         String url = res.getString("url");
-        LOG.info("Response: " + res.toString());
+        logger.info("Response: " + res.toString());
 
         if (url != null && !url.isEmpty())
           Desktop.getDesktop().browse(new URI(url));
 
       } catch (ParseException | IOException | URISyntaxException | JSONException e) {
-        LOG.log(Level.SEVERE, "Error while submitting GNPS job", e);
+        logger.log(Level.SEVERE, "Error while submitting GNPS job", e);
       }
     }
   }
-
 
   /**
    * GNPS-GC-MS workflow: Direct submission

@@ -1,17 +1,17 @@
 /*
- * Copyright 2006-2018 The MZmine 2 Development Team
+ * Copyright 2006-2020 The MZmine Development Team
  * 
- * This file is part of MZmine 2.
+ * This file is part of MZmine.
  * 
- * MZmine 2 is free software; you can redistribute it and/or modify it under the terms of the GNU
+ * MZmine is free software; you can redistribute it and/or modify it under the terms of the GNU
  * General Public License as published by the Free Software Foundation; either version 2 of the
  * License, or (at your option) any later version.
  * 
- * MZmine 2 is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
- * even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
+ * MZmine is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+ * the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
+ * Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with MZmine 2; if not,
+ * You should have received a copy of the GNU General Public License along with MZmine; if not,
  * write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301
  * USA
  */
@@ -144,7 +144,8 @@ public class SpectraIdentificationLipidSearchTask extends AbstractTask {
     MassDetector massDetector = null;
     ArrayList<String> allCompoundIDs = new ArrayList<>();
 
-    // Create a new mass list for MS/MS scan. Check if sprectrum is profile or centroid mode
+    // Create a new mass list for MS/MS scan. Check if sprectrum is profile
+    // or centroid mode
     if (currentScan.getSpectrumType() == MassSpectrumType.CENTROIDED) {
       massDetector = new CentroidMassDetector();
       CentroidMassDetectorParameters parameters = new CentroidMassDetectorParameters();
@@ -243,7 +244,7 @@ public class SpectraIdentificationLipidSearchTask extends AbstractTask {
     if (mzTolRange12C.contains(lipidIonMass)) {
       // Calc rel mass deviation;
       double relMassDev = ((lipidIonMass - searchedMass) / lipidIonMass) * 1000000;
-      lipidAnnoation = lipid.getName() + ionizationType.getAdduct() + ", Δ "
+      lipidAnnoation = lipid.getName() + ionizationType.getAdductName() + ", Δ "
           + NumberFormat.getInstance().format(relMassDev) + " ppm"; // Format relativ mass
     }
     return lipidAnnoation;
@@ -256,7 +257,8 @@ public class SpectraIdentificationLipidSearchTask extends AbstractTask {
     lipidIonMass = lipidMass + ionizationType.getAddedMass();
     logger.info("Searching for lipid " + lipid.getDescription() + ", " + lipidIonMass + " m/z");
     Range<Double> mzTolRange12C = mzTolerance.getToleranceRange(searchedMass);
-    // If search for modifications is selected search for modifications in MS1
+    // If search for modifications is selected search for modifications in
+    // MS1
     if (searchForModifications == true) {
       lipidAnnoation = searchModifications(searchedMass, lipidIonMass, lipid,
           lipidModificationMasses, mzTolRange12C);
@@ -273,7 +275,7 @@ public class SpectraIdentificationLipidSearchTask extends AbstractTask {
         double relMassDev = ((lipidIonMass + (lipidModificationMasses[j]) - searchedMass)
             / (lipidIonMass + lipidModificationMasses[j])) * 1000000;
         // Add row identity
-        lipidAnnoation = lipid + " " + ionizationType.getAdduct() + " " + lipidModification[j]
+        lipidAnnoation = lipid + " " + ionizationType.getAdductName() + " " + lipidModification[j]
             + ", Δ " + NumberFormat.getInstance().format(relMassDev) + " ppm";
         logger.info("Found modified lipid: " + lipid.getName() + " " + lipidModification[j] + ", Δ "
             + NumberFormat.getInstance().format(relMassDev) + " ppm");

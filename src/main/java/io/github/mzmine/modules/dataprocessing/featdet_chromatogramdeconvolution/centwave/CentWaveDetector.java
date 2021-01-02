@@ -1,17 +1,17 @@
 /*
- * Copyright 2006-2018 The MZmine 2 Development Team
+ * Copyright 2006-2020 The MZmine Development Team
  *
- * This file is part of MZmine 2.
+ * This file is part of MZmine.
  *
- * MZmine 2 is free software; you can redistribute it and/or modify it under the terms of the GNU
+ * MZmine is free software; you can redistribute it and/or modify it under the terms of the GNU
  * General Public License as published by the Free Software Foundation; either version 2 of the
  * License, or (at your option) any later version.
  *
- * MZmine 2 is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
- * even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
+ * MZmine is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+ * the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
+ * Public License for more details.
  *
- * You should have received a copy of the GNU General Public License along with MZmine 2; if not,
+ * You should have received a copy of the GNU General Public License along with MZmine; if not,
  * write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301
  * USA
  */
@@ -29,6 +29,7 @@ import static io.github.mzmine.modules.dataprocessing.featdet_chromatogramdeconv
 import static io.github.mzmine.modules.dataprocessing.featdet_chromatogramdeconvolution.centwave.CentWaveDetectorParameters.PEAK_SCALES;
 import static io.github.mzmine.modules.dataprocessing.featdet_chromatogramdeconvolution.centwave.CentWaveDetectorParameters.SN_THRESHOLD;
 
+import io.github.mzmine.datamodel.features.Feature;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -37,7 +38,6 @@ import javax.annotation.Nonnull;
 import com.google.common.collect.Range;
 
 import io.github.mzmine.datamodel.DataPoint;
-import io.github.mzmine.datamodel.Feature;
 import io.github.mzmine.datamodel.RawDataFile;
 import io.github.mzmine.modules.dataprocessing.featdet_chromatogramdeconvolution.PeakResolver;
 import io.github.mzmine.modules.dataprocessing.featdet_chromatogramdeconvolution.ResolvedPeak;
@@ -54,7 +54,7 @@ import io.github.mzmine.util.maths.CenterFunction;
 public class CentWaveDetector implements PeakResolver {
 
   // Logger.
-  private static final Logger LOG = Logger.getLogger(CentWaveDetector.class.getName());
+  private static final Logger logger = Logger.getLogger(CentWaveDetector.class.getName());
 
   // Name.
   private static final String NAME = "Wavelets (XCMS)";
@@ -102,13 +102,13 @@ public class CentWaveDetector implements PeakResolver {
   @Override
   public ResolvedPeak[] resolvePeaks(final Feature chromatogram, final ParameterSet parameters,
       RSessionWrapper rSession, CenterFunction mzCenterFunction, double msmsRange,
-      double rTRangeMSMS) throws RSessionWrapperException {
+      float rTRangeMSMS) throws RSessionWrapperException {
 
-    int scanNumbers[] = chromatogram.getScanNumbers();
+    int scanNumbers[] = chromatogram.getScanNumbers().stream().mapToInt(i -> i).toArray();
     final int scanCount = scanNumbers.length;
     double retentionTimes[] = new double[scanCount];
     double intensities[] = new double[scanCount];
-    RawDataFile dataFile = chromatogram.getDataFile();
+    RawDataFile dataFile = chromatogram.getRawDataFile();
     for (int i = 0; i < scanCount; i++) {
       final int scanNum = scanNumbers[i];
       retentionTimes[i] = dataFile.getScan(scanNum).getRetentionTime();
@@ -134,7 +134,7 @@ public class CentWaveDetector implements PeakResolver {
 
     } else {
 
-      LOG.finest("Processing peak matrix...");
+      logger.finest("Processing peak matrix...");
 
       final Range<Double> peakDuration = parameters.getParameter(PEAK_DURATION).getValue();
 
@@ -199,7 +199,7 @@ public class CentWaveDetector implements PeakResolver {
       final Range<Double> peakWidth, final PeakIntegrationMethod integrationMethod)
       throws RSessionWrapperException {
 
-    LOG.finest("Detecting peaks.");
+    logger.finest("Detecting peaks.");
 
     final double[][] peaks;
 
@@ -252,8 +252,8 @@ public class CentWaveDetector implements PeakResolver {
         + ", integrate=" + integrationMethod.getIndex() + ", ROI.list=ROIs)");
 
     // Get rid of 'NA' values potentially found in the resulting matrix
-    rSession.eval("mtx[is.na(mtx)] <- " + RSessionWrapper.NA_DOUBLE); // + "0");//
-
+    rSession.eval("mtx[is.na(mtx)] <- " + RSessionWrapper.NA_DOUBLE); // +
+                                                                      // "0");//
 
     final Object centWave = roi <= 1 ? null : (double[][]) rSession.collect("mtx", false);
 

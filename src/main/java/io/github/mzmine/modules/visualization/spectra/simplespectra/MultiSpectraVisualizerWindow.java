@@ -1,23 +1,25 @@
 /*
- * Copyright 2006-2018 The MZmine 2 Development Team
- * 
- * This file is part of MZmine 2.
- * 
- * MZmine 2 is free software; you can redistribute it and/or modify it under the terms of the GNU
+ * Copyright 2006-2020 The MZmine Development Team
+ *
+ * This file is part of MZmine.
+ *
+ * MZmine is free software; you can redistribute it and/or modify it under the terms of the GNU
  * General Public License as published by the Free Software Foundation; either version 2 of the
  * License, or (at your option) any later version.
- * 
- * MZmine 2 is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
- * even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- * 
- * You should have received a copy of the GNU General Public License along with MZmine 2; if not,
+ *
+ * MZmine is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+ * the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
+ * Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with MZmine; if not,
  * write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301
  * USA
  */
 
 package io.github.mzmine.modules.visualization.spectra.simplespectra;
 
+import io.github.mzmine.datamodel.features.Feature;
+import io.github.mzmine.datamodel.features.FeatureListRow;
 import java.awt.BasicStroke;
 import java.awt.BorderLayout;
 import java.awt.Color;
@@ -26,9 +28,11 @@ import java.awt.FlowLayout;
 import java.awt.GridLayout;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javafx.collections.ObservableList;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JFrame;
@@ -39,25 +43,22 @@ import javax.swing.JSplitPane;
 import org.jfree.chart.plot.ValueMarker;
 import org.jfree.chart.plot.XYPlot;
 import com.google.common.collect.Range;
-
-import io.github.mzmine.datamodel.Feature;
-import io.github.mzmine.datamodel.PeakListRow;
 import io.github.mzmine.datamodel.RawDataFile;
-import io.github.mzmine.modules.visualization.tic.TICPlot;
-import io.github.mzmine.modules.visualization.tic.TICPlotType;
-import io.github.mzmine.modules.visualization.tic.TICVisualizerWindow;
+import io.github.mzmine.modules.visualization.chromatogram.TICPlot;
+import io.github.mzmine.modules.visualization.chromatogram.TICPlotType;
+import io.github.mzmine.modules.visualization.chromatogram.TICVisualizerTab;
 import io.github.mzmine.parameters.parametertypes.selectors.ScanSelection;
 
 /**
  * Window to show all MS/MS scans of a feature list row
- * 
+ *
  * @author Ansgar Korf (ansgar.korf@uni-muenster.de)
  */
 public class MultiSpectraVisualizerWindow extends JFrame {
   private Logger logger = Logger.getLogger(this.getClass().getName());
 
-  private RawDataFile[] rawFiles;
-  private PeakListRow row;
+  private List<RawDataFile> rawFiles;
+  private FeatureListRow row;
   private RawDataFile activeRaw;
 
   private static final long serialVersionUID = 1L;
@@ -66,14 +67,14 @@ public class MultiSpectraVisualizerWindow extends JFrame {
 
   /**
    * Shows best fragmentation scan raw data file first
-   * 
+   *
    * @param row
    */
-  public MultiSpectraVisualizerWindow(PeakListRow row) {
+  public MultiSpectraVisualizerWindow(FeatureListRow row) {
     this(row, row.getBestFragmentation().getDataFile());
   }
 
-  public MultiSpectraVisualizerWindow(PeakListRow row, RawDataFile raw) {
+  public MultiSpectraVisualizerWindow(FeatureListRow row, RawDataFile raw) {
     setBackground(Color.WHITE);
     setExtendedState(JFrame.MAXIMIZED_BOTH);
     setMinimumSize(new Dimension(800, 600));
@@ -110,7 +111,7 @@ public class MultiSpectraVisualizerWindow extends JFrame {
     pnMenu.add(lbRaw);
 
     int n = 0;
-    for (Feature f : row.getPeaks()) {
+    for (Feature f : row.getFeatures()) {
       if (f.getMostIntenseFragmentScanNumber() > 0)
         n++;
     }
@@ -126,16 +127,15 @@ public class MultiSpectraVisualizerWindow extends JFrame {
     pack();
   }
 
-
   /**
    * next raw file with peak and MSMS
    */
   private void nextRaw() {
     logger.log(Level.INFO, "All MS/MS scans window: next raw file");
     int n = indexOfRaw(activeRaw);
-    while (n + 1 < rawFiles.length) {
+    while (n + 1 < rawFiles.size()) {
       n++;
-      setRawFileAndShow(rawFiles[n]);
+      setRawFileAndShow(rawFiles.get(n));
     }
   }
 
@@ -147,49 +147,47 @@ public class MultiSpectraVisualizerWindow extends JFrame {
     int n = indexOfRaw(activeRaw) - 1;
     while (n - 1 >= 0) {
       n--;
-      setRawFileAndShow(rawFiles[n]);
+      setRawFileAndShow(rawFiles.get(n));
     }
   }
 
-
   /**
    * Set data and create charts
-   * 
+   *
    * @param row
    * @param raw
    */
-  public void setData(PeakListRow row, RawDataFile raw) {
+  public void setData(FeatureListRow row, RawDataFile raw) {
     rawFiles = row.getRawDataFiles();
     this.row = row;
     setRawFileAndShow(raw);
   }
 
-
   /**
    * Set the raw data file and create all chromatograms and MS2 spectra
-   * 
+   *
    * @param raw
    * @return true if row has peak with MS2 spectrum in RawDataFile raw
    */
   public boolean setRawFileAndShow(RawDataFile raw) {
-    Feature peak = row.getPeak(raw);
+    Feature peak = row.getFeature(raw);
     // no peak / no ms2 - return false
     if (peak == null || peak.getAllMS2FragmentScanNumbers() == null
-        || peak.getAllMS2FragmentScanNumbers().length == 0)
+        || peak.getAllMS2FragmentScanNumbers().size() == 0)
       return false;
 
     this.activeRaw = raw;
     // clear
     pnGrid.removeAll();
 
-    int[] numbers = peak.getAllMS2FragmentScanNumbers();
+    ObservableList<Integer> numbers = peak.getAllMS2FragmentScanNumbers();
     for (int scan : numbers) {
       pnGrid.add(addSpectra(scan));
     }
 
     int n = indexOfRaw(raw);
     lbRaw.setText(n + ": " + raw.getName());
-    logger.log(Level.INFO, "All MS/MS scans window: Added " + numbers.length
+    logger.log(Level.INFO, "All MS/MS scans window: Added " + numbers.size()
         + " spectra of raw file " + n + ": " + raw.getName());
     // show
     pnGrid.revalidate();
@@ -197,11 +195,9 @@ public class MultiSpectraVisualizerWindow extends JFrame {
     return true;
   }
 
-
   private int indexOfRaw(RawDataFile raw) {
     return Arrays.asList(rawFiles).indexOf(raw);
   }
-
 
   private JPanel addSpectra(int scan) {
     JPanel panel = new JPanel(new BorderLayout());
@@ -212,7 +208,7 @@ public class MultiSpectraVisualizerWindow extends JFrame {
     // labels for TIC visualizer
     Map<Feature, String> labelsMap = new HashMap<Feature, String>(0);
 
-    Feature peak = row.getPeak(activeRaw);
+    Feature peak = row.getFeature(activeRaw);
 
     // scan selection
     ScanSelection scanSelection = new ScanSelection(activeRaw.getDataRTRange(1), 1);
@@ -230,16 +226,17 @@ public class MultiSpectraVisualizerWindow extends JFrame {
     labelsMap.put(peak, peak.toString());
 
     // get EIC window
-    TICVisualizerWindow window = new TICVisualizerWindow(new RawDataFile[] {activeRaw}, // raw
+    TICVisualizerTab window = new TICVisualizerTab(new RawDataFile[]{activeRaw}, // raw
         TICPlotType.BASEPEAK, // plot type
         scanSelection, // scan selection
         mzRange, // mz range
-        new Feature[] {peak}, // selected features
+        null,
+        // new Feature[] {peak}, // selected features
         labelsMap); // labels
 
     // get EIC Plot
     TICPlot ticPlot = window.getTICPlot();
-    ticPlot.setPreferredSize(new Dimension(600, 200));
+    // ticPlot.setPreferredSize(new Dimension(600, 200));
     ticPlot.getChart().getLegend().setVisible(false);
 
     // add a retention time Marker to the EIC
@@ -249,7 +246,7 @@ public class MultiSpectraVisualizerWindow extends JFrame {
 
     XYPlot plot = (XYPlot) ticPlot.getChart().getPlot();
     plot.addDomainMarker(marker);
-    bottomPane.add(ticPlot);
+    // bottomPane.add(ticPlot);
     bottomPane.setResizeWeight(0.5);
     bottomPane.setEnabled(true);
     bottomPane.setDividerSize(5);
@@ -258,15 +255,15 @@ public class MultiSpectraVisualizerWindow extends JFrame {
     JSplitPane spectrumPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
 
     // get MS/MS spectra window
-    SpectraVisualizerWindow spectraWindow = new SpectraVisualizerWindow(activeRaw);
-    spectraWindow.loadRawData(activeRaw.getScan(scan));
+    SpectraVisualizerTab spectraTab = new SpectraVisualizerTab(activeRaw);
+    spectraTab.loadRawData(activeRaw.getScan(scan));
 
     // get MS/MS spectra plot
-    SpectraPlot spectrumPlot = spectraWindow.getSpectrumPlot();
+    SpectraPlot spectrumPlot = spectraTab.getSpectrumPlot();
     spectrumPlot.getChart().getLegend().setVisible(false);
-    spectrumPlot.setPreferredSize(new Dimension(600, 400));
-    spectrumPane.add(spectrumPlot);
-    spectrumPane.add(spectraWindow.getToolBar());
+    // spectrumPlot.setPreferredSize(new Dimension(600, 400));
+    // spectrumPane.add(spectrumPlot);
+    // spectrumPane.add(spectraWindow.getToolBar());
     spectrumPane.setResizeWeight(1);
     spectrumPane.setEnabled(false);
     spectrumPane.setDividerSize(0);

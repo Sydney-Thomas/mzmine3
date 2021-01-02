@@ -1,17 +1,17 @@
 /*
  * Copyright 2006-2015 The du-lab Development Team
  *
- * This file is part of MZmine 2.
+ * This file is part of MZmine.
  *
- * MZmine 2 is free software; you can redistribute it and/or modify it under the terms of the GNU
+ * MZmine is free software; you can redistribute it and/or modify it under the terms of the GNU
  * General Public License as published by the Free Software Foundation; either version 2 of the
  * License, or (at your option) any later version.
  *
- * MZmine 2 is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
- * even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
+ * MZmine is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+ * the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
+ * Public License for more details.
  *
- * You should have received a copy of the GNU General Public License along with MZmine 2; if not,
+ * You should have received a copy of the GNU General Public License along with MZmine; if not,
  * write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301
  * USA
  */
@@ -31,6 +31,7 @@ import static io.github.mzmine.modules.dataprocessing.featdet_chromatogramdeconv
 import static io.github.mzmine.modules.dataprocessing.featdet_chromatogramdeconvolution.ADAPpeakpicking.WaveletCoefficientsSNParameters.ABS_WAV_COEFFS;
 import static io.github.mzmine.modules.dataprocessing.featdet_chromatogramdeconvolution.ADAPpeakpicking.WaveletCoefficientsSNParameters.HALF_WAVELET_WINDOW;
 
+import io.github.mzmine.datamodel.impl.SimpleFeatureInformation;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -40,9 +41,8 @@ import javax.annotation.Nonnull;
 import com.google.common.collect.Range;
 import dulab.adap.datamodel.PeakInfo;
 import io.github.mzmine.datamodel.DataPoint;
-import io.github.mzmine.datamodel.Feature;
+import io.github.mzmine.datamodel.features.Feature;
 import io.github.mzmine.datamodel.RawDataFile;
-import io.github.mzmine.datamodel.impl.SimplePeakInformation;
 import io.github.mzmine.modules.MZmineProcessingStep;
 import io.github.mzmine.modules.dataprocessing.featdet_chromatogramdeconvolution.PeakResolver;
 import io.github.mzmine.modules.dataprocessing.featdet_chromatogramdeconvolution.ResolvedPeak;
@@ -52,21 +52,19 @@ import io.github.mzmine.util.R.RSessionWrapper;
 import io.github.mzmine.util.R.RSessionWrapperException;
 import io.github.mzmine.util.maths.CenterFunction;
 
-
 /**
  * Use XCMS findPeaks.centWave to identify peaks.
  */
 public class ADAPDetector implements PeakResolver {
 
   // Logger.
-  private static final Logger LOG = Logger.getLogger(ADAPDetector.class.getName());
+  private static final Logger logger = Logger.getLogger(ADAPDetector.class.getName());
 
   // Name.
   private static final String NAME = "Wavelets (ADAP)";
 
   // Minutes <-> seconds.
   private static final double SECONDS_PER_MINUTE = 60.0;
-
 
   @Nonnull
   @Override
@@ -105,13 +103,13 @@ public class ADAPDetector implements PeakResolver {
   @Override
   public ResolvedPeak[] resolvePeaks(final Feature chromatogram, final ParameterSet parameters,
       RSessionWrapper rSession, CenterFunction mzCenterFunction, double msmsRange,
-      double rTRangeMSMS) throws RSessionWrapperException {
+      float rTRangeMSMS) throws RSessionWrapperException {
 
-    int scanNumbers[] = chromatogram.getScanNumbers();
+    int scanNumbers[] = chromatogram.getScanNumbers().stream().mapToInt(i -> i).toArray();
     final int scanCount = scanNumbers.length;
     double retentionTimes[] = new double[scanCount];
     double intensities[] = new double[scanCount];
-    RawDataFile dataFile = chromatogram.getDataFile();
+    RawDataFile dataFile = chromatogram.getRawDataFile();
     for (int i = 0; i < scanCount; i++) {
       final int scanNum = scanNumbers[i];
       retentionTimes[i] = dataFile.getScan(scanNum).getRetentionTime();
@@ -124,7 +122,6 @@ public class ADAPDetector implements PeakResolver {
 
     // List<PeakInfo> ADAPPeaks = new ArrayList<PeakInfo>();
     List<PeakInfo> ADAPPeaks = null;
-
 
     Range<Double> peakDuration = parameters.getParameter(PEAK_DURATION).getValue();
 
@@ -153,7 +150,8 @@ public class ADAPDetector implements PeakResolver {
       rtSum += retentionTimes[i + 1] - retentionTimes[i];
     }
     double avgRTInterval = rtSum / (retentionTimes.length - 1);
-    // Change the lower and uper bounds for the wavelet scales from retention times to number of
+    // Change the lower and uper bounds for the wavelet scales from
+    // retention times to number of
     // scans.
     Range<Double> rtRangeForCWTScales =
         parameters.getParameter(RT_FOR_CWT_SCALES_DURATION).getValue();
@@ -185,13 +183,14 @@ public class ADAPDetector implements PeakResolver {
       // Process peak matrix.
       resolvedPeaks = new ArrayList<ResolvedPeak>(ADAPPeaks.size());
 
-
-
-      // The old way could detect the same peak more than once if the wavlet scales were too large.
-      // If the left bounds were the same and there was a null point before the right bounds it
+      // The old way could detect the same peak more than once if the
+      // wavlet scales were too large.
+      // If the left bounds were the same and there was a null point
+      // before the right bounds it
       // would
       // make the same peak twice.
-      // To avoid the above see if the peak duration range is met before going into
+      // To avoid the above see if the peak duration range is met before
+      // going into
       // the loop
 
       // for (final double[] peakRow : peakMatrix) {
@@ -199,11 +198,12 @@ public class ADAPDetector implements PeakResolver {
 
         PeakInfo curPeak = ADAPPeaks.get(i);
 
-        SimplePeakInformation information = new SimplePeakInformation();
+        SimpleFeatureInformation information = new SimpleFeatureInformation();
         information.addProperty("Signal-to-Noise", Double.toString(curPeak.signalToNoiseRatio));
         information.addProperty("Coefficient-over-area", Double.toString(curPeak.coeffOverArea));
         // information.addProperty("index",
-        // //Integer.toString(scans[(int) peakIndex[j] - 1])); // Substract one because r-indices
+        // //Integer.toString(scans[(int) peakIndex[j] - 1])); //
+        // Substract one because r-indices
         // start from 1
         // Integer.toString((int) curPeak.peakIndex));
         // information.addProperty("sharpness",
@@ -216,15 +216,13 @@ public class ADAPDetector implements PeakResolver {
         // information.addProperty("offset",
         // Integer.toString((int) curPeak.offset));
 
-
-
         ResolvedPeak peak = new ResolvedPeak(chromatogram, curPeak.leftApexIndex,
             curPeak.rightApexIndex, mzCenterFunction, msmsRange, rTRangeMSMS);
         peak.setPeakInformation(information);
 
-
         resolvedPeaks.add(peak);
-        // resolvedPeaks.add(new ResolvedPeak(chromatogram,curPeak.leftApexIndex,
+        // resolvedPeaks.add(new
+        // ResolvedPeak(chromatogram,curPeak.leftApexIndex,
         // curPeak.rightApexIndex));
       }
     }

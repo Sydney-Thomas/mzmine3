@@ -1,17 +1,17 @@
 /*
- * Copyright 2006-2018 The MZmine 2 Development Team
+ * Copyright 2006-2020 The MZmine Development Team
  * 
- * This file is part of MZmine 2.
+ * This file is part of MZmine.
  * 
- * MZmine 2 is free software; you can redistribute it and/or modify it under the terms of the GNU
+ * MZmine is free software; you can redistribute it and/or modify it under the terms of the GNU
  * General Public License as published by the Free Software Foundation; either version 2 of the
  * License, or (at your option) any later version.
  * 
- * MZmine 2 is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
- * even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
+ * MZmine is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+ * the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
+ * Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with MZmine 2; if not,
+ * You should have received a copy of the GNU General Public License along with MZmine; if not,
  * write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301
  * USA
  */
@@ -54,9 +54,9 @@ public abstract class DataPointProcessingTask extends AbstractTask {
   protected String taskDescription;
   protected Color color;
   protected boolean displayResults;
-  
 
-  // move the results into this array by setReults to be collected by the controller and passed on
+  // move the results into this array by setReults to be collected by the
+  // controller and passed on
   // to the next DPPTask by it
   private ProcessedDataPoint[] results;
 
@@ -153,8 +153,8 @@ public abstract class DataPointProcessingTask extends AbstractTask {
   }
 
   /**
-   * Convenience method to execute the {@link ParameterSet#checkParameterValues} method and set
-   * an error message using setErrorMessage method.
+   * Convenience method to execute the {@link ParameterSet#checkParameterValues} method and set an
+   * error message using setErrorMessage method.
    * 
    * @return true if all values are valid, false otherwise.
    */
@@ -203,6 +203,7 @@ public abstract class DataPointProcessingTask extends AbstractTask {
 
   /**
    * Sets the color of the results of this task.
+   * 
    * @param color
    */
   protected void setColor(Color color) {
@@ -211,6 +212,7 @@ public abstract class DataPointProcessingTask extends AbstractTask {
 
   /**
    * Sets if the results of this task should be displayed.
+   * 
    * @param displayResults
    */
   protected void setDisplayResults(boolean displayResults) {

@@ -1,22 +1,25 @@
 /*
- * Copyright 2006-2018 The MZmine 2 Development Team
- * 
- * This file is part of MZmine 2.
- * 
- * MZmine 2 is free software; you can redistribute it and/or modify it under the terms of the GNU
+ * Copyright 2006-2020 The MZmine Development Team
+ *
+ * This file is part of MZmine.
+ *
+ * MZmine is free software; you can redistribute it and/or modify it under the terms of the GNU
  * General Public License as published by the Free Software Foundation; either version 2 of the
  * License, or (at your option) any later version.
- * 
- * MZmine 2 is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
- * even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- * 
- * You should have received a copy of the GNU General Public License along with MZmine 2; if not,
+ *
+ * MZmine is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+ * the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
+ * Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with MZmine; if not,
  * write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301
  * USA
  */
 package io.github.mzmine.modules.visualization.spectra.multimsms;
 
+import io.github.mzmine.datamodel.features.Feature;
+import io.github.mzmine.datamodel.features.FeatureListRow;
+import io.github.mzmine.util.MirrorChartFactory;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
 import java.awt.GridLayout;
@@ -34,14 +37,10 @@ import javax.swing.JLabel;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
-import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.border.EmptyBorder;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.axis.ValueAxis;
-
-import io.github.mzmine.datamodel.Feature;
-import io.github.mzmine.datamodel.PeakListRow;
 import io.github.mzmine.datamodel.RawDataFile;
 import io.github.mzmine.datamodel.Scan;
 import io.github.mzmine.datamodel.identities.ms2.interf.AbstractMSMSIdentity;
@@ -51,13 +50,14 @@ import io.github.mzmine.gui.chartbasics.gui.wrapper.ChartViewWrapper;
 import io.github.mzmine.modules.visualization.spectra.multimsms.pseudospectra.PseudoSpectrum;
 import io.github.mzmine.modules.visualization.spectra.multimsms.pseudospectra.PseudoSpectrumDataSet;
 import io.github.mzmine.parameters.parametertypes.tolerances.MZTolerance;
-import io.github.mzmine.util.PeakListRowSorter;
+import io.github.mzmine.util.FeatureListRowSorter;
 import io.github.mzmine.util.SortingDirection;
 import io.github.mzmine.util.SortingProperty;
+import javafx.scene.control.TextInputDialog;
 
 /**
  * Holds more charts for data reviewing
- * 
+ *
  * @author Robin Schmid
  *
  */
@@ -89,7 +89,6 @@ public class MultiMSMSWindow extends JFrame {
   // click marker in all of the group
   private boolean showCrosshair = true;
 
-
   private JLabel lbRawIndex;
   private JPanel pnTopMenu;
   private JLabel lbRawName;
@@ -97,7 +96,7 @@ public class MultiMSMSWindow extends JFrame {
   private JCheckBox cbBestRaw;
   private JCheckBox cbUseBestForMissingRaw;
 
-  private PeakListRow[] rows;
+  private FeatureListRow[] rows;
   private RawDataFile raw;
   private RawDataFile[] allRaw;
   private boolean createMS1;
@@ -114,7 +113,6 @@ public class MultiMSMSWindow extends JFrame {
     contentPane.setBorder(new EmptyBorder(5, 5, 5, 5));
     contentPane.setLayout(new BorderLayout(0, 0));
     setContentPane(contentPane);
-
 
     pnTopMenu = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
     contentPane.add(pnTopMenu, BorderLayout.NORTH);
@@ -148,18 +146,16 @@ public class MultiMSMSWindow extends JFrame {
       setUseBestForMissing(cbUseBestForMissingRaw.isSelected());
     });
 
-
     pnCharts = new JPanel();
     contentPane.add(pnCharts, BorderLayout.CENTER);
     pnCharts.setLayout(new GridLayout(0, 4));
-
 
     addMenu();
   }
 
   /**
    * Show best for missing MSMS in raw (if not selected none is shown)
-   * 
+   *
    * @param selected
    */
   public void setUseBestForMissing(boolean selected) {
@@ -179,7 +175,6 @@ public class MultiMSMSWindow extends JFrame {
     }
   }
 
-
   private void prevRaw() {
     if (allRaw == null)
       return;
@@ -198,13 +193,13 @@ public class MultiMSMSWindow extends JFrame {
 
   /**
    * any row contains fragment scan in raw data file
-   * 
+   *
    * @param raw
    * @return
    */
   private boolean rawContainsFragmentation(RawDataFile raw) {
-    for (PeakListRow row : rows) {
-      Feature peak = row.getPeak(raw);
+    for (FeatureListRow row : rows) {
+      Feature peak = row.getFeature(raw);
       if (peak != null && peak.getMostIntenseFragmentScanNumber() > 0) {
         return true;
       }
@@ -214,7 +209,7 @@ public class MultiMSMSWindow extends JFrame {
 
   /**
    * set raw data file and update
-   * 
+   *
    * @param raw
    */
   public void setRaw(RawDataFile raw) {
@@ -245,17 +240,21 @@ public class MultiMSMSWindow extends JFrame {
     JMenu settings = new JMenu("Settings");
     menu.add(settings);
 
-    JFrame thisframe = this;
-
     // set columns
     JMenuItem setCol = new JMenuItem("set columns");
     menu.add(setCol);
     setCol.addActionListener(e -> {
       try {
-        col = Integer.parseInt(JOptionPane.showInputDialog("Columns", col));
-        setAutoColumns(false);
-        setColumns(col);
+        TextInputDialog inputDialog = new TextInputDialog(String.valueOf(col));
+        inputDialog.setContentText("Columns");
+        var result = inputDialog.showAndWait();
+        if (result.isPresent()) {
+          col = Integer.parseInt(result.get());
+          setAutoColumns(false);
+          setColumns(col);
+        }
       } catch (Exception e2) {
+        e2.printStackTrace();
       }
     });
 
@@ -278,7 +277,6 @@ public class MultiMSMSWindow extends JFrame {
         e -> setShowTitle(((JCheckBoxMenuItem) e.getSource()).isSelected()));
     addCheckBox(settings, "show crosshair", showCrosshair,
         e -> setShowCrosshair(((JCheckBoxMenuItem) e.getSource()).isSelected()));;
-
 
     this.setJMenuBar(menu);
   }
@@ -327,25 +325,25 @@ public class MultiMSMSWindow extends JFrame {
 
   /**
    * Sort rows
-   * 
+   *
    * @param rows
    * @param raw
    * @param sorting
    * @param direction
    */
-  public void setData(PeakListRow[] rows, RawDataFile[] allRaw, RawDataFile raw, boolean createMS1,
+  public void setData(FeatureListRow[] rows, RawDataFile[] allRaw, RawDataFile raw, boolean createMS1,
       SortingProperty sorting, SortingDirection direction) {
-    Arrays.sort(rows, new PeakListRowSorter(sorting, direction));
+    Arrays.sort(rows, new FeatureListRowSorter(sorting, direction));
     setData(rows, allRaw, raw, createMS1);
   }
 
   /**
    * Create charts and show
-   * 
+   *
    * @param rows
    * @param raw
    */
-  public void setData(PeakListRow[] rows, RawDataFile[] allRaw, RawDataFile raw,
+  public void setData(FeatureListRow[] rows, RawDataFile[] allRaw, RawDataFile raw,
       boolean createMS1) {
     this.rows = rows;
     this.allRaw = allRaw;
@@ -354,7 +352,7 @@ public class MultiMSMSWindow extends JFrame {
     // check raw
     if (raw != null && !rawContainsFragmentation(raw)) {
       // change to best of highest row
-      raw = Arrays.stream(rows).map(PeakListRow::getBestFragmentation).filter(Objects::nonNull)
+      raw = Arrays.stream(rows).map(FeatureListRow::getBestFragmentation).filter(Objects::nonNull)
           .findFirst().get().getDataFile();
     }
     // set raw and update
@@ -371,14 +369,14 @@ public class MultiMSMSWindow extends JFrame {
     if (createMS1) {
       Scan scan = null;
       Feature best = null;
-      for (PeakListRow r : rows) {
-        Feature f = raw == null ? r.getBestPeak() : r.getPeak(raw);
+      for (FeatureListRow r : rows) {
+        Feature f = raw == null ? r.getBestFeature() : r.getFeature(raw);
         if (f != null && (best == null || f.getHeight() > best.getHeight())) {
           best = f;
         }
       }
       if (best != null) {
-        scan = best.getDataFile().getScan(best.getRepresentativeScanNumber());
+        scan = best.getRawDataFile().getScan(best.getRepresentativeScanNumber());
         EChartPanel cp = SpectrumChartFactory.createScanChartPanel(scan, showTitle, showLegend);
         if (cp != null)
           msone = new ChartViewWrapper(cp);
@@ -398,8 +396,8 @@ public class MultiMSMSWindow extends JFrame {
 
     // COMMON
     // MS2 of all rows
-    for (PeakListRow row : rows) {
-      EChartPanel c = SpectrumChartFactory.createMSMSChartPanel(row, raw, showTitle, showLegend,
+    for (FeatureListRow row : rows) {
+      EChartPanel c = MirrorChartFactory.createMSMSChartPanel(row, raw, showTitle, showLegend,
           alwaysShowBest, useBestForMissingRaw);
 
       if (c != null) {
@@ -411,7 +409,7 @@ public class MultiMSMSWindow extends JFrame {
   }
 
   /**
-   * 
+   *
    * @param group
    */
   public void renewCharts(ChartGroup group) {
@@ -467,10 +465,9 @@ public class MultiMSMSWindow extends JFrame {
       addMSMSAnnotation(a);
   }
 
-
   /**
    * To flag annotations in spectra
-   * 
+   *
    * @param mzTolerance
    */
   public void setMzTolerance(MZTolerance mzTolerance) {
@@ -517,7 +514,7 @@ public class MultiMSMSWindow extends JFrame {
 
   /**
    * all charts (ms1 and MS2)
-   * 
+   *
    * @param op
    */
   public void forAllCharts(Consumer<JFreeChart> op) {
@@ -525,10 +522,9 @@ public class MultiMSMSWindow extends JFrame {
       group.forAllCharts(op);
   }
 
-
   /**
    * only ms2 charts
-   * 
+   *
    * @param op
    */
   public void forAllMSMSCharts(Consumer<JFreeChart> op) {

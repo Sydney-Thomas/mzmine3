@@ -1,39 +1,34 @@
 /*
- * Copyright 2006-2018 The MZmine 2 Development Team
- * 
- * This file is part of MZmine 2.
- * 
- * MZmine 2 is free software; you can redistribute it and/or modify it under the terms of the GNU
+ * Copyright 2006-2020 The MZmine Development Team
+ *
+ * This file is part of MZmine.
+ *
+ * MZmine is free software; you can redistribute it and/or modify it under the terms of the GNU
  * General Public License as published by the Free Software Foundation; either version 2 of the
  * License, or (at your option) any later version.
- * 
- * MZmine 2 is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
- * even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- * 
- * You should have received a copy of the GNU General Public License along with MZmine 2; if not,
+ *
+ * MZmine is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+ * the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
+ * Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with MZmine; if not,
  * write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301
  * USA
  */
 
 package io.github.mzmine.modules.dataprocessing.id_ms2search;
 
+import io.github.mzmine.datamodel.features.Feature;
+import io.github.mzmine.datamodel.features.FeatureList;
+import io.github.mzmine.datamodel.features.FeatureListRow;
+import io.github.mzmine.datamodel.features.ModularFeatureList;
+import io.github.mzmine.datamodel.features.SimpleFeatureListAppliedMethod;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Logger;
-
 import io.github.mzmine.datamodel.DataPoint;
-import io.github.mzmine.datamodel.Feature;
 import io.github.mzmine.datamodel.MassList;
-import io.github.mzmine.datamodel.PeakList;
-import io.github.mzmine.datamodel.PeakListRow;
-import io.github.mzmine.datamodel.RawDataFile;
 import io.github.mzmine.datamodel.Scan;
-import io.github.mzmine.datamodel.impl.SimplePeakList;
-import io.github.mzmine.datamodel.impl.SimplePeakListAppliedMethod;
-import io.github.mzmine.gui.Desktop;
-import io.github.mzmine.gui.impl.HeadLessDesktop;
-import io.github.mzmine.main.MZmineCore;
 import io.github.mzmine.parameters.ParameterSet;
 import io.github.mzmine.parameters.parametertypes.tolerances.MZTolerance;
 import io.github.mzmine.taskcontrol.AbstractTask;
@@ -73,7 +68,11 @@ class Ms2SearchResult {
     for (int i = 0; i < this.matchedIons.size(); i++) {
       returnString = returnString + String.format("%.4f", this.matchedIons.get(i).getMZ()) + "_";
     }
-    return returnString.substring(0, returnString.length() - 1); // Some hackery to remove the last
+    return returnString.substring(0, returnString.length() - 1); // Some
+                                                                 // hackery
+                                                                 // to
+                                                                 // remove
+                                                                 // the last
                                                                  // "_"
   }
 
@@ -85,8 +84,8 @@ class Ms2SearchTask extends AbstractTask {
   private Logger logger = Logger.getLogger(this.getClass().getName());
 
   private int finishedRows, totalRows;
-  private PeakList peakList1;
-  private PeakList peakList2;
+  private FeatureList peakList1;
+  private FeatureList peakList2;
 
   private MZTolerance mzTolerance;
   private ParameterSet parameters;
@@ -99,7 +98,7 @@ class Ms2SearchTask extends AbstractTask {
    * @param parameters
    * @param peakList
    */
-  public Ms2SearchTask(ParameterSet parameters, PeakList peakList1, PeakList peakList2) {
+  public Ms2SearchTask(ParameterSet parameters, FeatureList peakList1, FeatureList peakList2) {
 
     this.peakList1 = peakList1;
     this.peakList2 = peakList2;
@@ -115,12 +114,12 @@ class Ms2SearchTask extends AbstractTask {
 
     massListName = parameters.getParameter(Ms2SearchParameters.massList).getValue();
 
-
   }
 
   /**
    * @see io.github.mzmine.taskcontrol.Task#getFinishedPercentage()
    */
+  @Override
   public double getFinishedPercentage() {
     if (totalRows == 0)
       return 0;
@@ -130,6 +129,7 @@ class Ms2SearchTask extends AbstractTask {
   /**
    * @see io.github.mzmine.taskcontrol.Task#getTaskDescription()
    */
+  @Override
   public String getTaskDescription() {
     return "MS2 similarity comparison between " + peakList1 + " and " + peakList2;
   }
@@ -137,6 +137,7 @@ class Ms2SearchTask extends AbstractTask {
   /**
    * @see java.lang.Runnable#run()
    */
+  @Override
   public void run() {
 
     setStatus(TaskStatus.PROCESSING);
@@ -145,8 +146,8 @@ class Ms2SearchTask extends AbstractTask {
         + " with mz tolerance:" + mzTolerance.getPpmTolerance());
 
     Ms2SearchResult searchResult;
-    PeakListRow rows1[] = peakList1.getRows();
-    PeakListRow rows2[] = peakList2.getRows();
+    FeatureListRow rows1[] = peakList1.getRows().toArray(FeatureListRow[]::new);
+    FeatureListRow rows2[] = peakList2.getRows().toArray(FeatureListRow[]::new);
 
     int rows1Length = rows1.length;
     int rows2Length = rows2.length;
@@ -155,13 +156,12 @@ class Ms2SearchTask extends AbstractTask {
 
     for (int i = 0; i < rows1Length; i++) {
       for (int j = 0; j < rows2Length; j++) {
-        Feature featureA = rows1[i].getBestPeak();
-        Feature featureB = rows2[j].getBestPeak();
-        // Complication. The "best" peak, may not have the "best" fragmentation
+        Feature featureA = rows1[i].getBestFeature();
+        Feature featureB = rows2[j].getBestFeature();
+        // Complication. The "best" peak, may not have the "best"
+        // fragmentation
         Scan scanA = rows1[i].getBestFragmentation();
         Scan scanB = rows2[j].getBestFragmentation();
-
-
 
         searchResult =
             simpleMS2similarity(scanA, scanB, intensityThreshold, mzTolerance, massListName);
@@ -180,13 +180,8 @@ class Ms2SearchTask extends AbstractTask {
     }
 
     // Add task description to peakList
-    ((SimplePeakList) peakList1).addDescriptionOfAppliedTask(
-        new SimplePeakListAppliedMethod("Identification of similar MS2s", parameters));
-
-    // Repaint the window to reflect the change in the feature list
-    Desktop desktop = MZmineCore.getDesktop();
-    if (!(desktop instanceof HeadLessDesktop))
-      desktop.getMainWindow().repaint();
+    ((ModularFeatureList) peakList1).addDescriptionOfAppliedTask(
+        new SimpleFeatureListAppliedMethod("Identification of similar MS2s", parameters));
 
     setStatus(TaskStatus.FINISHED);
 
@@ -206,7 +201,6 @@ class Ms2SearchTask extends AbstractTask {
     // int ms2ScanNumberA = featureA.getMostIntenseFragmentScanNumber();
     // Scan scanMS2A = featureA.getDataFile().getScan(ms2ScanNumberA);
 
-
     // Fetch 2nd feature MS2 scan.
     // int ms2ScanNumberB = featureB.getMostIntenseFragmentScanNumber();
     // Scan scanMS2B = featureB.getDataFile().getScan(ms2ScanNumberB);
@@ -220,7 +214,8 @@ class Ms2SearchTask extends AbstractTask {
     MassList massListB = scanMS2B.getMassList(massListName);
 
     if (massListA == null) {
-      // Will this work properly? As this function isn't directly the task?
+      // Will this work properly? As this function isn't directly the
+      // task?
       setStatus(TaskStatus.ERROR);
       setErrorMessage("Scan " + scanMS2A.getDataFile().getName() + " #" + scanMS2A.getScanNumber()
           + " does not have a mass list " + massListName);
@@ -228,7 +223,8 @@ class Ms2SearchTask extends AbstractTask {
     }
 
     if (massListB == null) {
-      // Will this work properly? As this function isn't directly the task?
+      // Will this work properly? As this function isn't directly the
+      // task?
       setStatus(TaskStatus.ERROR);
       setErrorMessage("Scan " + scanMS2B.getDataFile().getName() + " #" + scanMS2B.getScanNumber()
           + " does not have a mass list " + massListName);
@@ -249,7 +245,8 @@ class Ms2SearchTask extends AbstractTask {
       return null;
     }
 
-    // Compare every ion peak in MS2 scan A, to every ion peak in MS2 scan B.
+    // Compare every ion peak in MS2 scan A, to every ion peak in MS2 scan
+    // B.
     double ionsBMaxMZ = ionsB[ionsB.length - 1].getMZ();
     for (int i = 0; i < ionsA.length; i++) {
 
@@ -257,7 +254,8 @@ class Ms2SearchTask extends AbstractTask {
       double mzRangeAbsolute = iMZ * 1e-6 * mzRangePPM;
 
       if (iMZ - mzRangeAbsolute > ionsBMaxMZ)
-        break; // Potential speedup heuristic. If any i is greater than the max of j, no more
+        break; // Potential speedup heuristic. If any i is greater than
+               // the max of j, no more
                // matches are possible.
 
       for (int j = 0; j < ionsB.length; j++) {
@@ -265,7 +263,8 @@ class Ms2SearchTask extends AbstractTask {
         double jMZ = ionsB[j].getMZ();
 
         if (iMZ < jMZ - mzRangeAbsolute)
-          break; // Potential speedup heuristic. iMZ smaller than jMZ. Skip the rest of the j's as
+          break; // Potential speedup heuristic. iMZ smaller than jMZ.
+                 // Skip the rest of the j's as
                  // they can only increase.
 
         if (Math.abs(iMZ - jMZ) < mzRangeAbsolute) {
@@ -281,16 +280,13 @@ class Ms2SearchTask extends AbstractTask {
 
   /**
    * Add new identity based on fragmentation similarity to the row
-   * 
+   *
    * @param mainRow
    * @param fragmentRow
    */
-  private void addMS2Identity(PeakListRow row1, Feature featureA, Feature featureB,
+  private void addMS2Identity(FeatureListRow row1, Feature featureA, Feature featureB,
       Ms2SearchResult searchResult) {
     Ms2Identity newIdentity = new Ms2Identity(featureA, featureB, searchResult);
-    row1.addPeakIdentity(newIdentity, false);
-
-    // Notify the GUI about the change in the project
-    MZmineCore.getProjectManager().getCurrentProject().notifyObjectChanged(row1, false);
+    row1.addFeatureIdentity(newIdentity, false);
   }
 }

@@ -1,22 +1,21 @@
 /*
  * This module was prepared by Abi Sarvepalli, Christopher Jensen, and Zheng Zhang at the Dorrestein
  * Lab (University of California, San Diego).
- * 
+ *
  * It is freely available under the GNU GPL licence of MZmine2.
- * 
+ *
  * For any questions or concerns, please refer to:
  * https://groups.google.com/forum/#!forum/molecular_networking_bug_reports
- * 
+ *
  * Credit to the Du-Lab development team for the initial commitment to the MGF export module.
  */
 
 package io.github.mzmine.modules.io.siriusexport;
 
+import io.github.mzmine.datamodel.features.FeatureListRow;
 import java.util.Collection;
 import javax.annotation.Nonnull;
-
 import io.github.mzmine.datamodel.MZmineProject;
-import io.github.mzmine.datamodel.PeakListRow;
 import io.github.mzmine.main.MZmineCore;
 import io.github.mzmine.modules.MZmineModuleCategory;
 import io.github.mzmine.modules.MZmineProcessingModule;
@@ -50,14 +49,13 @@ public class SiriusExportModule implements MZmineProcessingModule {
 
   }
 
-
-  public static void exportSinglePeakList(PeakListRow row) {
+  public static void exportSingleFeatureList(FeatureListRow row) {
 
     try {
       ParameterSet parameters =
           MZmineCore.getConfiguration().getModuleParameters(SiriusExportModule.class);
 
-      ExitCode exitCode = parameters.showSetupDialog(MZmineCore.getDesktop().getMainWindow(), true);
+      ExitCode exitCode = parameters.showSetupDialog(true);
       if (exitCode != ExitCode.OK)
         return;
       // Open file
@@ -65,19 +63,18 @@ public class SiriusExportModule implements MZmineProcessingModule {
       task.runSingleRow(row);
     } catch (Exception e) {
       e.printStackTrace();
-      MZmineCore.getDesktop().displayErrorMessage(MZmineCore.getDesktop().getMainWindow(),
+      MZmineCore.getDesktop().displayErrorMessage(
           "Error while exporting feature to SIRIUS: " + ExceptionUtils.exceptionToString(e));
     }
 
   }
 
-
-  public static void exportSingleRows(PeakListRow[] row) {
+  public static void exportSingleRows(FeatureListRow[] row) {
     try {
       ParameterSet parameters =
           MZmineCore.getConfiguration().getModuleParameters(SiriusExportModule.class);
 
-      ExitCode exitCode = parameters.showSetupDialog(MZmineCore.getDesktop().getMainWindow(), true);
+      ExitCode exitCode = parameters.showSetupDialog(true);
       if (exitCode != ExitCode.OK)
         return;
       // Open file
@@ -85,14 +82,14 @@ public class SiriusExportModule implements MZmineProcessingModule {
       task.runSingleRows(row);
     } catch (Exception e) {
       e.printStackTrace();
-      MZmineCore.getDesktop().displayErrorMessage(MZmineCore.getDesktop().getMainWindow(),
+      MZmineCore.getDesktop().displayErrorMessage(
           "Error while exporting feature to SIRIUS: " + ExceptionUtils.exceptionToString(e));
     }
   }
 
   @Override
   public @Nonnull MZmineModuleCategory getModuleCategory() {
-    return MZmineModuleCategory.PEAKLISTEXPORT;
+    return MZmineModuleCategory.FEATURELISTEXPORT;
   }
 
   @Override
@@ -103,11 +100,11 @@ public class SiriusExportModule implements MZmineProcessingModule {
 }
 
 /*
- * "If you use the SIRIUS export module, cite MZmine2 and the following articlel. Dührkop, M.
+ * "If you use the SIRIUS export module, cite MZmine and the following article: Duhrkop, M.
  * Fleischauer, M. Ludwig, A. A. Aksenov, A. V. Melnik, M. Meusel, P. C. Dorrestein, J. Rousu, and
- * S. Böcker, “Sirius 4: a rapid tool for turning tandem mass spectra into metabolite structure
- * information,” Nat methods, 2019. 8:5
- * 
+ * S. Boecker, Sirius 4: a rapid tool for turning tandem mass spectra into metabolite structure
+ * information, Nat methods, 2019. 8:5
+ *
  * [Link](http://dx.doi.org/10.1038/s41592-019-0344-8), and
  * [Link](https://jcheminf.springeropen.com/articles/10.1186/s13321-016-0116-8)
  */

@@ -1,44 +1,43 @@
 /*
- * Copyright 2006-2018 The MZmine 2 Development Team
+ * Copyright 2006-2020 The MZmine Development Team
  * 
- * This file is part of MZmine 2.
+ * This file is part of MZmine.
  * 
- * MZmine 2 is free software; you can redistribute it and/or modify it under the terms of the GNU
+ * MZmine is free software; you can redistribute it and/or modify it under the terms of the GNU
  * General Public License as published by the Free Software Foundation; either version 2 of the
  * License, or (at your option) any later version.
  * 
- * MZmine 2 is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
- * even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
+ * MZmine is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+ * the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
+ * Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with MZmine 2; if not,
+ * You should have received a copy of the GNU General Public License along with MZmine; if not,
  * write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301
  * USA
  */
 
 package io.github.mzmine.modules.dataprocessing.featdet_gridmass;
 
-import java.text.Format;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.logging.Logger;
-
 import io.github.mzmine.datamodel.DataPoint;
 import io.github.mzmine.datamodel.MZmineProject;
 import io.github.mzmine.datamodel.RawDataFile;
 import io.github.mzmine.datamodel.Scan;
+import io.github.mzmine.datamodel.features.ModularFeatureList;
+import io.github.mzmine.datamodel.features.ModularFeatureListRow;
 import io.github.mzmine.datamodel.impl.SimpleDataPoint;
-import io.github.mzmine.datamodel.impl.SimplePeakList;
-import io.github.mzmine.datamodel.impl.SimplePeakListRow;
 import io.github.mzmine.main.MZmineCore;
 import io.github.mzmine.modules.dataprocessing.featdet_chromatogrambuilder.Chromatogram;
-import io.github.mzmine.modules.tools.qualityparameters.QualityParameters;
 import io.github.mzmine.parameters.ParameterSet;
 import io.github.mzmine.parameters.parametertypes.selectors.ScanSelection;
 import io.github.mzmine.taskcontrol.AbstractTask;
 import io.github.mzmine.taskcontrol.TaskStatus;
 import io.github.mzmine.util.ArrayUtils;
+import io.github.mzmine.util.FeatureConvertors;
+import java.text.Format;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.logging.Logger;
 
 public class GridMassTask extends AbstractTask {
 
@@ -74,7 +73,7 @@ public class GridMassTask extends AbstractTask {
   private double minMasa = 0;
   private double maxMasa = 0;
 
-  private SimplePeakList newPeakList;
+  private ModularFeatureList newPeakList;
 
   private String ignoreTimes = "";
 
@@ -162,7 +161,7 @@ public class GridMassTask extends AbstractTask {
     }
 
     // Create new feature list
-    newPeakList = new SimplePeakList(dataFile + " " + suffix, dataFile);
+    newPeakList = new ModularFeatureList(dataFile + " " + suffix, dataFile);
 
     int j;
     // minimumTimeSpan
@@ -509,8 +508,9 @@ public class GridMassTask extends AbstractTask {
             peak.finishChromatogram();
             if (peak.getArea() > 1e-6) {
               newPeakID++;
-              SimplePeakListRow newRow = new SimplePeakListRow(newPeakID);
-              newRow.addPeak(dataFile, peak);
+              ModularFeatureListRow newRow = new ModularFeatureListRow(newPeakList, newPeakID);
+              newRow.addFeature(dataFile,
+                  FeatureConvertors.ChromatogramToModularFeature(newPeakList, peak));
               newRow.setComment(sx.toString(retentiontime));
               newPeakList.addRow(newRow);
               if (debug > 0)
@@ -562,10 +562,10 @@ public class GridMassTask extends AbstractTask {
     logger.info("Peaks on " + dataFile + " = " + newPeakList.getNumberOfRows());
 
     // Add new peaklist to the project
-    project.addPeakList(newPeakList);
+    project.addFeatureList(newPeakList);
 
     // Add quality parameters to peaks
-    QualityParameters.calculateQualityParameters(newPeakList);
+    //QualityParameters.calculateQualityParameters(newPeakList);
 
     setStatus(TaskStatus.FINISHED);
 
@@ -694,7 +694,8 @@ public class GridMassTask extends AbstractTask {
                     && mzValuesJ[f].getIntensity() > 0) { // >=
                   // minimumHeight
                   // ?
-                  // System.out.println("mz="+mz+"; Closer="+mzValuesJ[f].getMZ()+", f="+f+",
+                  // System.out.println("mz="+mz+";
+                  // Closer="+mzValuesJ[f].getMZ()+", f="+f+",
                   // Intensity="+mzValuesJ[f].getIntensity());
                   a += mzValuesJ[f].getIntensity();
                   c++;
@@ -801,7 +802,8 @@ public class GridMassTask extends AbstractTask {
                 // This datum is actually MINE (s) !!!, this
                 // will happen to datums close to spot borders
                 // and that compete with other spot
-                // System.out.println("Reassigning spot to Id="+s.spotId+" from
+                // System.out.println("Reassigning spot to
+                // Id="+s.spotId+" from
                 // Spot:"+d.toString());
                 s.setSpotIdToDatum(d);
               }

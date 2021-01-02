@@ -1,31 +1,31 @@
 /*
- * Copyright 2006-2018 The MZmine 2 Development Team
+ * Copyright 2006-2020 The MZmine Development Team
  * 
- * This file is part of MZmine 2.
+ * This file is part of MZmine.
  * 
- * MZmine 2 is free software; you can redistribute it and/or modify it under the terms of the GNU
+ * MZmine is free software; you can redistribute it and/or modify it under the terms of the GNU
  * General Public License as published by the Free Software Foundation; either version 2 of the
  * License, or (at your option) any later version.
  * 
- * MZmine 2 is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
- * even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
+ * MZmine is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+ * the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
+ * Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with MZmine 2; if not,
+ * You should have received a copy of the GNU General Public License along with MZmine; if not,
  * write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301
  * USA
  */
 
 package io.github.mzmine.modules.dataprocessing.filter_groupms2;
 
+import io.github.mzmine.datamodel.features.Feature;
+import io.github.mzmine.datamodel.features.FeatureList;
+import io.github.mzmine.datamodel.features.FeatureListRow;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import com.google.common.collect.Range;
 
-import io.github.mzmine.datamodel.Feature;
 import io.github.mzmine.datamodel.MZmineProject;
-import io.github.mzmine.datamodel.PeakList;
-import io.github.mzmine.datamodel.PeakListRow;
 import io.github.mzmine.datamodel.RawDataFile;
 import io.github.mzmine.datamodel.Scan;
 import io.github.mzmine.parameters.ParameterSet;
@@ -34,6 +34,7 @@ import io.github.mzmine.parameters.parametertypes.tolerances.RTTolerance;
 import io.github.mzmine.taskcontrol.AbstractTask;
 import io.github.mzmine.taskcontrol.TaskStatus;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
+import javafx.collections.FXCollections;
 
 /**
  * Filters out feature list rows.
@@ -41,14 +42,14 @@ import it.unimi.dsi.fastutil.ints.IntArrayList;
 public class GroupMS2Task extends AbstractTask {
 
   // Logger.
-  private static final Logger LOG = Logger.getLogger(GroupMS2Task.class.getName());
+  private static final Logger logger = Logger.getLogger(GroupMS2Task.class.getName());
   // Feature lists.
   private final MZmineProject project;
   // Processed rows counter
   private int processedRows, totalRows;
   // Parameters.
   private final ParameterSet parameters;
-  private PeakList list;
+  private FeatureList list;
   private RTTolerance rtTol;
   private MZTolerance mzTol;
   private boolean limitRTByFeature;
@@ -59,7 +60,7 @@ public class GroupMS2Task extends AbstractTask {
    * @param list feature list to process.
    * @param parameterSet task parameters.
    */
-  public GroupMS2Task(final MZmineProject project, final PeakList list,
+  public GroupMS2Task(final MZmineProject project, final FeatureList list,
       final ParameterSet parameterSet) {
 
     // Initialize.
@@ -93,19 +94,19 @@ public class GroupMS2Task extends AbstractTask {
 
       totalRows = list.getNumberOfRows();
       // for all features
-      for (PeakListRow row : list.getRows()) {
-        for (Feature f : row.getPeaks()) {
+      for (FeatureListRow row : list.getRows()) {
+        for (Feature f : row.getFeatures()) {
           if (getStatus() == TaskStatus.ERROR)
             return;
           if (isCanceled())
             return;
 
-          RawDataFile raw = f.getDataFile();
+          RawDataFile raw = f.getRawDataFile();
           IntArrayList scans = new IntArrayList();
           int best = f.getRepresentativeScanNumber();
-          double frt = f.getRT();
+          float frt = f.getRT();
           double fmz = f.getMZ();
-          Range<Double> rtRange = f.getRawDataPointsRTRange();
+          Range<Float> rtRange = f.getRawDataPointsRTRange();
           int i = best;
           // left
           while (i > 1) {
@@ -142,23 +143,21 @@ public class GroupMS2Task extends AbstractTask {
             }
           }
           // set list to feature
-          f.setAllMS2FragmentScanNumbers(scans.toIntArray());
+          f.setAllMS2FragmentScanNumbers(FXCollections.observableArrayList(scans));
         }
         processedRows++;
       }
 
       setStatus(TaskStatus.FINISHED);
-      LOG.info("Finished adding all MS2 scans to their features in " + list.getName());
+      logger.info("Finished adding all MS2 scans to their features in " + list.getName());
 
     } catch (Throwable t) {
       t.printStackTrace();
       setErrorMessage(t.getMessage());
       setStatus(TaskStatus.ERROR);
-      LOG.log(Level.SEVERE, "Error while adding all MS2 scans to their feautres", t);
+      logger.log(Level.SEVERE, "Error while adding all MS2 scans to their feautres", t);
     }
 
   }
 
 }
-
-

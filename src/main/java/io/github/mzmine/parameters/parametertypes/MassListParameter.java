@@ -1,17 +1,17 @@
 /*
- * Copyright 2006-2018 The MZmine 2 Development Team
+ * Copyright 2006-2020 The MZmine Development Team
  * 
- * This file is part of MZmine 2.
+ * This file is part of MZmine.
  * 
- * MZmine 2 is free software; you can redistribute it and/or modify it under the terms of the GNU
+ * MZmine is free software; you can redistribute it and/or modify it under the terms of the GNU
  * General Public License as published by the Free Software Foundation; either version 2 of the
  * License, or (at your option) any later version.
  * 
- * MZmine 2 is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
- * even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
+ * MZmine is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+ * the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
+ * Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with MZmine 2; if not,
+ * You should have received a copy of the GNU General Public License along with MZmine; if not,
  * write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301
  * USA
  */
@@ -27,6 +27,7 @@ import io.github.mzmine.parameters.UserParameter;
 public class MassListParameter implements UserParameter<String, MassListComponent> {
 
   private String name, description, value;
+  private boolean allowEmpty = false;
 
   /**
    * This new constructor will be used if cloneParameter is called, so it's possible to create mass
@@ -41,13 +42,24 @@ public class MassListParameter implements UserParameter<String, MassListComponen
     this.description = description1;
   }
 
+  public MassListParameter(String name, String description, boolean allowEmpty) {
+    this.name = name;
+    this.description = description;
+    this.allowEmpty = allowEmpty;
+  }
+
+  public MassListParameter(boolean allowEmpty) {
+    this();
+    this.allowEmpty = allowEmpty;
+  }
+
   public MassListParameter() {
     this.name = "Mass list";
     this.description = "Please select a mass list name";
   }
 
   /**
-   * @see net.sf.mzmine.data.Parameter#getName()
+   * @see io.github.mzmine.data.Parameter#getName()
    */
   @Override
   public String getName() {
@@ -55,7 +67,7 @@ public class MassListParameter implements UserParameter<String, MassListComponen
   }
 
   /**
-   * @see net.sf.mzmine.data.Parameter#getDescription()
+   * @see io.github.mzmine.data.Parameter#getDescription()
    */
   @Override
   public String getDescription() {
@@ -107,7 +119,7 @@ public class MassListParameter implements UserParameter<String, MassListComponen
 
   @Override
   public boolean checkValue(Collection<String> errorMessages) {
-    if ((value == null) || (value.trim().length() == 0)) {
+    if (allowEmpty == false && ((value == null) || (value.trim().length() == 0))) {
       errorMessages.add(name + " is not set properly");
       return false;
     }

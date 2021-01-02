@@ -1,17 +1,17 @@
 /*
- * Copyright 2006-2018 The MZmine 2 Development Team
+ * Copyright 2006-2020 The MZmine Development Team
  * 
- * This file is part of MZmine 2.
+ * This file is part of MZmine.
  * 
- * MZmine 2 is free software; you can redistribute it and/or modify it under the terms of the GNU
+ * MZmine is free software; you can redistribute it and/or modify it under the terms of the GNU
  * General Public License as published by the Free Software Foundation; either version 2 of the
  * License, or (at your option) any later version.
  * 
- * MZmine 2 is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
- * even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
+ * MZmine is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+ * the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
+ * Public License for more details.
  * 
- * You should have received a copy of the GNU General Public License along with MZmine 2; if not,
+ * You should have received a copy of the GNU General Public License along with MZmine; if not,
  * write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301
  * USA
  */
@@ -36,6 +36,9 @@ import java.util.Collection;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import org.apache.commons.io.FilenameUtils;
+
 import com.google.common.util.concurrent.AtomicDouble;
 import io.github.msdk.MSDKRuntimeException;
 import io.github.mzmine.main.MZmineCore;
@@ -60,11 +63,10 @@ import io.github.mzmine.util.files.FileAndPathUtil;
  */
 public class GnpsFbmnExportAndSubmitTask extends AbstractTask {
   // Logger.
-  private final Logger LOG = Logger.getLogger(getClass().getName());
+  private final Logger logger = Logger.getLogger(getClass().getName());
 
   private ParameterSet parameters;
   private AtomicDouble progress = new AtomicDouble(0);
-
 
   GnpsFbmnExportAndSubmitTask(ParameterSet parameters) {
     this.parameters = parameters;
@@ -112,7 +114,7 @@ public class GnpsFbmnExportAndSubmitTask extends AbstractTask {
         // succeed
         l -> {
           try {
-            LOG.info("succeed" + thistask.getStatus().toString());
+            logger.info("succeed" + thistask.getStatus().toString());
             if (submit) {
               GnpsFbmnSubmitParameters param = parameters
                   .getParameter(GnpsFbmnExportAndSubmitParameters.SUBMIT).getEmbeddedParameters();
@@ -154,11 +156,10 @@ public class GnpsFbmnExportAndSubmitTask extends AbstractTask {
       try {
         Thread.sleep(100);
       } catch (InterruptedException e) {
-        LOG.log(Level.SEVERE, "Error in GNPS export/submit task", e);
+        logger.log(Level.SEVERE, "Error in GNPS export/submit task", e);
       }
     }
   }
-
 
   /**
    * Submit GNPS job
@@ -170,9 +171,9 @@ public class GnpsFbmnExportAndSubmitTask extends AbstractTask {
     try {
       String url = GNPSUtils.submitFbmnJob(fileName, param);
       if (url == null || url.isEmpty())
-        LOG.log(Level.WARNING, "GNPS submit failed (response url empty)");
+        logger.log(Level.WARNING, "GNPS submit failed (response url empty)");
     } catch (Exception e) {
-      LOG.log(Level.WARNING, "GNPS submit failed", e);
+      logger.log(Level.WARNING, "GNPS submit failed", e);
     }
   }
 
@@ -184,20 +185,20 @@ public class GnpsFbmnExportAndSubmitTask extends AbstractTask {
    */
   private AbstractTask addQuantTableTask(ParameterSet parameters, Collection<Task> tasks) {
     File full = parameters.getParameter(GnpsFbmnExportAndSubmitParameters.FILENAME).getValue();
-    String name = FileAndPathUtil.eraseFormat(full.getName());
-    full = FileAndPathUtil.getRealFilePath(full.getParentFile(), name + "_quant", "csv");
+    final String name = FilenameUtils.removeExtension(full.getName());
+    full = new File(full.getParentFile(), name + "_quant.csv");
 
     ExportRowCommonElement[] common = new ExportRowCommonElement[] {ExportRowCommonElement.ROW_ID,
         ExportRowCommonElement.ROW_MZ, ExportRowCommonElement.ROW_RT};
 
     ExportRowDataFileElement[] rawdata =
-        new ExportRowDataFileElement[] {ExportRowDataFileElement.PEAK_AREA};
+        new ExportRowDataFileElement[] {ExportRowDataFileElement.FEATURE_AREA};
 
     RowFilter filter = parameters.getParameter(GnpsFbmnExportAndSubmitParameters.FILTER).getValue();
 
     CSVExportTask quanExport = new CSVExportTask(
-        parameters.getParameter(GnpsFbmnExportAndSubmitParameters.PEAK_LISTS).getValue()
-            .getMatchingPeakLists(), //
+        parameters.getParameter(GnpsFbmnExportAndSubmitParameters.FEATURE_LISTS).getValue()
+            .getMatchingFeatureLists(), //
         full, ",", common, rawdata, false, ";", filter);
     if (tasks != null)
       tasks.add(quanExport);

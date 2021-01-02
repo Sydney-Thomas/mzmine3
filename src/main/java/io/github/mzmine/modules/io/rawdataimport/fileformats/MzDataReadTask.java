@@ -1,17 +1,17 @@
 /*
- * Copyright 2006-2018 The MZmine 2 Development Team
- * 
- * This file is part of MZmine 2.
- * 
- * MZmine 2 is free software; you can redistribute it and/or modify it under the terms of the GNU
+ * Copyright 2006-2020 The MZmine Development Team
+ *
+ * This file is part of MZmine.
+ *
+ * MZmine is free software; you can redistribute it and/or modify it under the terms of the GNU
  * General Public License as published by the Free Software Foundation; either version 2 of the
  * License, or (at your option) any later version.
- * 
- * MZmine 2 is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
- * even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- * 
- * You should have received a copy of the GNU General Public License along with MZmine 2; if not,
+ *
+ * MZmine is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+ * the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
+ * Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with MZmine; if not,
  * write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301
  * USA
  */
@@ -25,21 +25,15 @@ import java.nio.ByteOrder;
 import java.util.Base64;
 import java.util.LinkedList;
 import java.util.logging.Logger;
-
 import javax.xml.parsers.SAXParser;
 import javax.xml.parsers.SAXParserFactory;
-
 import org.xml.sax.Attributes;
 import org.xml.sax.SAXException;
 import org.xml.sax.helpers.DefaultHandler;
-
-import io.github.mzmine.datamodel.DataPoint;
 import io.github.mzmine.datamodel.MZmineProject;
 import io.github.mzmine.datamodel.MassSpectrumType;
 import io.github.mzmine.datamodel.PolarityType;
 import io.github.mzmine.datamodel.RawDataFile;
-import io.github.mzmine.datamodel.RawDataFileWriter;
-import io.github.mzmine.datamodel.impl.SimpleDataPoint;
 import io.github.mzmine.datamodel.impl.SimpleScan;
 import io.github.mzmine.taskcontrol.AbstractTask;
 import io.github.mzmine.taskcontrol.TaskStatus;
@@ -55,8 +49,7 @@ public class MzDataReadTask extends AbstractTask {
 
   private File file;
   private MZmineProject project;
-  private RawDataFileWriter newMZmineFile;
-  private RawDataFile finalRawDataFile;
+  private RawDataFile newMZmineFile;
   private int totalScans = 0, parsedScans;
   private int peaksCount = 0;
   private StringBuilder charBuffer;
@@ -69,7 +62,7 @@ public class MzDataReadTask extends AbstractTask {
   private int msLevel;
   // private int parentScan;
   private PolarityType polarity = PolarityType.UNKNOWN;
-  private double retentionTime;
+  private float retentionTime;
   private double precursorMz;
   private int precursorCharge = 0;
   private DefaultHandler handler = new MzDataHandler();
@@ -94,12 +87,12 @@ public class MzDataReadTask extends AbstractTask {
    * implemented because exists the possibility to find fragments of one scan after one or more full
    * scans. The file myo_full_1.05cv.mzdata/myo_full_1.04cv.mzdata, provided by Proteomics Standards
    * Initiative as example, shows this condition in the order of scans and fragments.
-   * 
+   *
    * http://sourceforge.net/projects/psidev/
    */
   private LinkedList<SimpleScan> parentStack;
 
-  public MzDataReadTask(MZmineProject project, File fileToOpen, RawDataFileWriter newMZmineFile) {
+  public MzDataReadTask(MZmineProject project, File fileToOpen, RawDataFile newMZmineFile) {
     // 256 kilo-chars buffer
     charBuffer = new StringBuilder(1 << 18);
     parentStack = new LinkedList<SimpleScan>();
@@ -111,6 +104,7 @@ public class MzDataReadTask extends AbstractTask {
   /**
    * @see io.github.mzmine.taskcontrol.Task#getFinishedPercentage()
    */
+  @Override
   public double getFinishedPercentage() {
     return totalScans == 0 ? 0 : (double) parsedScans / totalScans;
   }
@@ -118,6 +112,7 @@ public class MzDataReadTask extends AbstractTask {
   /**
    * @see java.lang.Runnable#run()
    */
+  @Override
   public void run() {
 
     setStatus(TaskStatus.PROCESSING);
@@ -131,9 +126,7 @@ public class MzDataReadTask extends AbstractTask {
       SAXParser saxParser = factory.newSAXParser();
       saxParser.parse(file, handler);
 
-      // Close file
-      finalRawDataFile = newMZmineFile.finishWriting();
-      project.addFile(finalRawDataFile);
+      project.addFile(newMZmineFile);
 
     } catch (Throwable e) {
       e.printStackTrace();
@@ -157,25 +150,29 @@ public class MzDataReadTask extends AbstractTask {
 
   }
 
+  @Override
   public String getTaskDescription() {
     return "Opening file " + file;
   }
 
   private class MzDataHandler extends DefaultHandler {
 
+    @Override
     public void startElement(String namespaceURI, String lName, // local
         // name
         String qName, // qualified name
         Attributes attrs) throws SAXException {
 
-      if (isCanceled())
+      if (isCanceled()) {
         throw new SAXException("Parsing Cancelled");
+      }
 
       // <spectrumList>
       if (qName.equals("spectrumList")) {
         String s = attrs.getValue("count");
-        if (s != null)
+        if (s != null) {
           totalScans = Integer.parseInt(s);
+        }
       }
 
       // <spectrum>
@@ -204,21 +201,22 @@ public class MzDataReadTask extends AbstractTask {
         if (spectrumInstrumentFlag) {
           if ((attrs.getValue("accession").equals("PSI:1000037"))
               || (attrs.getValue("name").equals("Polarity"))) {
-            if (attrs.getValue("value").toLowerCase().equals("positive"))
+            if (attrs.getValue("value").toLowerCase().equals("positive")) {
               polarity = PolarityType.POSITIVE;
-            else if (attrs.getValue("value").toLowerCase().equals("negative"))
+            } else if (attrs.getValue("value").toLowerCase().equals("negative")) {
               polarity = PolarityType.NEGATIVE;
-            else
+            } else {
               polarity = PolarityType.UNKNOWN;
+            }
           }
           if ((attrs.getValue("accession").equals("PSI:1000038"))
               || (attrs.getValue("name").equals("time.min"))) {
-            retentionTime = Double.parseDouble(attrs.getValue("value"));
+            retentionTime = (float) Double.parseDouble(attrs.getValue("value"));
           }
 
           if ((attrs.getValue("accession").equals("PSI:1000039"))
               || (attrs.getValue("name").equals("time.sec"))) {
-            retentionTime = Double.parseDouble(attrs.getValue("value")) / 60d;
+            retentionTime = (float) (Double.parseDouble(attrs.getValue("value")) / 60d);
           }
         }
         if (precursorFlag) {
@@ -252,15 +250,17 @@ public class MzDataReadTask extends AbstractTask {
           endian = attrs.getValue("endian");
           precision = attrs.getValue("precision");
           String len = attrs.getValue("length");
-          if (len != null)
+          if (len != null) {
             peaksCount = Integer.parseInt(len);
+          }
         }
         if (intenArrayBinaryFlag) {
           endian = attrs.getValue("endian");
           precision = attrs.getValue("precision");
           String len = attrs.getValue("length");
-          if (len != null)
+          if (len != null) {
             peaksCount = Integer.parseInt(len);
+          }
         }
       }
 
@@ -276,9 +276,10 @@ public class MzDataReadTask extends AbstractTask {
 
     /**
      * endElement()
-     * 
+     *
      * @throws IOException
      */
+    @Override
     public void endElement(String namespaceURI, String sName, // simple name
         String qName // qualified name
     ) throws SAXException {
@@ -296,30 +297,15 @@ public class MzDataReadTask extends AbstractTask {
       // <spectrum>
       if (qName.equalsIgnoreCase("spectrum")) {
 
-        DataPoint dataPoints[] = new DataPoint[peaksCount];
         spectrumInstrumentFlag = false;
 
-        // Copy m/z and intensity data
-        for (int i = 0; i < dataPoints.length; i++) {
-          dataPoints[i] =
-              new SimpleDataPoint((double) mzDataPoints[i], (double) intensityDataPoints[i]);
-        }
-
         // Auto-detect whether this scan is centroided
-        MassSpectrumType spectrumType = ScanUtils.detectSpectrumType(dataPoints);
+        MassSpectrumType spectrumType =
+            ScanUtils.detectSpectrumType(mzDataPoints, intensityDataPoints);
 
-        buildingScan = new SimpleScan(null, scanNumber, msLevel, retentionTime, precursorMz,
-            precursorCharge, null, dataPoints, spectrumType, polarity, "", null);
-
-        /*
-         * Update of fragmentScanNumbers of each Scan in the parentStack
-         */
-        for (SimpleScan s : parentStack) {
-          // if (s.getScanNumber() ==
-          // buildingScan.getParentScanNumber()) {
-          s.addFragmentScan(buildingScan.getScanNumber());
-          // }
-        }
+        buildingScan = new SimpleScan(newMZmineFile, scanNumber, msLevel, retentionTime,
+            precursorMz, precursorCharge, mzDataPoints, intensityDataPoints, spectrumType, polarity,
+            "", null);
 
         /*
          * Verify the size of parentStack. The actual size of the window to cover possible
@@ -359,10 +345,11 @@ public class MzDataReadTask extends AbstractTask {
         }
 
         for (int i = 0; i < mzDataPoints.length; i++) {
-          if (precision == null || precision.equals("32"))
-            mzDataPoints[i] = (double) currentMzBytes.getFloat();
-          else
+          if (precision == null || precision.equals("32")) {
+            mzDataPoints[i] = currentMzBytes.getFloat();
+          } else {
             mzDataPoints[i] = currentMzBytes.getDouble();
+          }
         }
       }
 
@@ -383,23 +370,26 @@ public class MzDataReadTask extends AbstractTask {
         }
 
         for (int i = 0; i < intensityDataPoints.length; i++) {
-          if (precision == null || precision.equals("32"))
-            intensityDataPoints[i] = (double) currentIntensityBytes.getFloat();
-          else
+          if (precision == null || precision.equals("32")) {
+            intensityDataPoints[i] = currentIntensityBytes.getFloat();
+          } else {
             intensityDataPoints[i] = currentIntensityBytes.getDouble();
+          }
         }
       }
     }
 
     /**
      * characters()
-     * 
+     *
      * @see org.xml.sax.ContentHandler#characters(char[], int, int)
      */
+    @Override
     public void characters(char buf[], int offset, int len) throws SAXException {
       charBuffer.append(buf, offset, len);
     }
 
+    @Override
     public void endDocument() throws SAXException {
       while (!parentStack.isEmpty()) {
         SimpleScan scan = parentStack.removeLast();

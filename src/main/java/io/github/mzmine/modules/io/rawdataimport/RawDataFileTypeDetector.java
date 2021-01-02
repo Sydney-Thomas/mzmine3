@@ -1,17 +1,17 @@
 /*
- * Copyright 2006-2018 The MZmine 2 Development Team
- * 
- * This file is part of MZmine 2.
- * 
- * MZmine 2 is free software; you can redistribute it and/or modify it under the terms of the GNU
+ * Copyright 2006-2020 The MZmine Development Team
+ *
+ * This file is part of MZmine.
+ *
+ * MZmine is free software; you can redistribute it and/or modify it under the terms of the GNU
  * General Public License as published by the Free Software Foundation; either version 2 of the
  * License, or (at your option) any later version.
- * 
- * MZmine 2 is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
- * even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- * 
- * You should have received a copy of the GNU General Public License along with MZmine 2; if not,
+ *
+ * MZmine is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+ * the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
+ * Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with MZmine; if not,
  * write to the Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301
  * USA
  */
@@ -21,7 +21,7 @@ package io.github.mzmine.modules.io.rawdataimport;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStreamReader;
-import java.util.logging.Level;
+import java.nio.charset.StandardCharsets;
 import java.util.logging.Logger;
 
 /**
@@ -30,11 +30,12 @@ import java.util.logging.Logger;
 public class RawDataFileTypeDetector {
 
   private static Logger logger = Logger.getLogger(RawDataFileTypeDetector.class.getName());
-  
+
   /*
-   * See "http://www.unidata.ucar.edu/software/netcdf/docs/netcdf/File-Format-Specification.html"
+   * See "https://unidata.ucar.edu/software/netcdf/docs/netcdf_introduction.html#netcdf_format"
    */
   private static final String CDF_HEADER = "CDF";
+  private static final String HDF_HEADER = "HDF";
 
   /*
    * mzML files with index start with <indexedmzML><mzML>tags, but files with no index contain only
@@ -60,70 +61,104 @@ public class RawDataFileTypeDetector {
 
   private static final String ZIP_HEADER = String.valueOf(new char[] {'P', 'K', 0x03, 0x04});
 
+  private static final String TDF_SUFFIX = ".tdf";
+  private static final String TDF_BIN_SUFFIX = ".tdf_bin";
+  private static final String BRUKER_FOLDER_SUFFIX = ".d";
+
   /**
-   * 
    * @return Detected file type or null if the file is not of any supported type
    */
   public static RawDataFileType detectDataFileType(File fileName) {
 
     if (fileName.isDirectory()) {
+      if (fileName.getName().endsWith(BRUKER_FOLDER_SUFFIX)) {
+        return RawDataFileType.BRUKER_TDF;
+      }
+
       // To check for Waters .raw directory, we look for _FUNC[0-9]{3}.DAT
       for (File f : fileName.listFiles()) {
-        if (f.isFile() && f.getName().toUpperCase().matches("_FUNC[0-9]{3}.DAT"))
+        if (f.isFile() && f.getName().toUpperCase().matches("_FUNC[0-9]{3}.DAT")) {
           return RawDataFileType.WATERS_RAW;
+        }
+        if (f.isFile()
+            && (f.getName().contains(TDF_SUFFIX) || f.getName().contains(TDF_BIN_SUFFIX))) {
+          return RawDataFileType.BRUKER_TDF;
+        }
       }
-      // We don't recognize any other directory type than Waters
+      // We don't recognize any other directory type than Waters and Bruker
       return null;
     }
-    
-    try {
 
-      // Read the first 1kB of the file into a String
-      InputStreamReader reader = new InputStreamReader(new FileInputStream(fileName), "ISO-8859-1");
-      char buffer[] = new char[1024];
-      reader.read(buffer);
-      reader.close();
-      String fileHeader = new String(buffer);
+    if (fileName.isFile()) {
 
-      if (fileName.getName().toLowerCase().endsWith(".csv")) {
-        if (fileHeader.contains(":") && fileHeader.contains("\\")
-            && !fileHeader.contains("file name")) {
-          logger.fine("ICP raw file detected");
-          return RawDataFileType.ICPMSMS_CSV;
+      if (fileName.getName().contains(TDF_SUFFIX) || fileName.getName().contains(TDF_BIN_SUFFIX)) {
+        return RawDataFileType.BRUKER_TDF;
+      }
+
+      try {
+
+        // Read the first 1kB of the file into a String
+        InputStreamReader reader =
+            new InputStreamReader(new FileInputStream(fileName), StandardCharsets.ISO_8859_1);
+        char buffer[] = new char[1024];
+        reader.read(buffer);
+        reader.close();
+        String fileHeader = new String(buffer);
+
+        if (fileName.getName().toLowerCase().endsWith(".csv")) {
+          if (fileHeader.contains(":") && fileHeader.contains("\\")
+              && !fileHeader.contains("file name")) {
+            logger.fine("ICP raw file detected");
+            return RawDataFileType.ICPMSMS_CSV;
+          }
+          logger.fine("Agilent raw detected");
+          return RawDataFileType.AGILENT_CSV;
         }
-        logger.fine("Agilent raw detected");
-        return RawDataFileType.AGILENT_CSV;
+
+        if (fileHeader.startsWith(THERMO_HEADER)) {
+          return RawDataFileType.THERMO_RAW;
+        }
+
+        if (fileHeader.startsWith(GZIP_HEADER)) {
+          return RawDataFileType.GZIP;
+        }
+
+        if (fileHeader.startsWith(ZIP_HEADER)) {
+          return RawDataFileType.ZIP;
+        }
+
+        /*
+         * Remove specials (Unicode block) from header if any
+         * https://en.wikipedia.org/wiki/Specials_(Unicode_block)
+         */
+        fileHeader = fileHeader.replaceAll("[^\\x00-\\x7F]", "");
+
+        if (fileHeader.startsWith(CDF_HEADER) || fileHeader.startsWith(HDF_HEADER)) {
+
+          return RawDataFileType.NETCDF;
+        }
+
+        if (fileHeader.contains(MZML_HEADER)) {
+          if (fileName.getName().toLowerCase().endsWith("imzml")) {
+            return RawDataFileType.IMZML;
+          } else {
+            return RawDataFileType.MZML;
+          }
+        }
+
+        if (fileHeader.contains(MZDATA_HEADER)) {
+          return RawDataFileType.MZDATA;
+        }
+
+        if (fileHeader.contains(MZXML_HEADER)) {
+          return RawDataFileType.MZXML;
+        }
+
+      } catch (Exception e) {
+        e.printStackTrace();
       }
-
-      if (fileHeader.startsWith(THERMO_HEADER)) {
-        return RawDataFileType.THERMO_RAW;
-      }
-
-      if (fileHeader.startsWith(GZIP_HEADER)) {
-        return RawDataFileType.GZIP;
-      }
-
-      if (fileHeader.startsWith(ZIP_HEADER)) {
-        return RawDataFileType.ZIP;
-      }
-
-      if (fileHeader.startsWith(CDF_HEADER)) {
-        return RawDataFileType.NETCDF;
-      }
-
-      if (fileHeader.contains(MZML_HEADER))
-        return RawDataFileType.MZML;
-
-      if (fileHeader.contains(MZDATA_HEADER))
-        return RawDataFileType.MZDATA;
-
-      if (fileHeader.contains(MZXML_HEADER))
-        return RawDataFileType.MZXML;
-
-    } catch (Exception e) {
-      e.printStackTrace();
     }
-    
+
     return null;
 
   }
