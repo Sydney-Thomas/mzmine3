@@ -167,6 +167,10 @@ dependencies {
     // https://mvnrepository.com/artifact/commons-cli/commons-cli
     implementation group: 'commons-cli', name: 'commons-cli', version: '1.4'
 
+    // https://mvnrepository.com/artifact/net.sf.py4j/py4j
+    implementation group: 'net.sf.py4j', name: 'py4j', version: '0.10.9.2'
+
+
 
     testImplementation "org.junit.jupiter:junit-jupiter-api:$junitversion"
     testRuntimeOnly "org.junit.jupiter:junit-jupiter-engine:$junitversion"

@@ -26,6 +26,7 @@ import io.github.mzmine.gui.Desktop;
 import io.github.mzmine.gui.HeadLessDesktop;
 import io.github.mzmine.gui.MZmineGUI;
 import io.github.mzmine.gui.preferences.MZminePreferences;
+import io.github.mzmine.gui.py4j.PythonController;
 import io.github.mzmine.main.impl.MZmineConfigurationImpl;
 import io.github.mzmine.modules.MZmineModule;
 import io.github.mzmine.modules.MZmineRunnableModule;
@@ -60,6 +61,7 @@ import javafx.application.Application;
 import javafx.application.Platform;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import py4j.GatewayServer;
 
 /**
  * MZmine main class
@@ -160,6 +162,13 @@ public final class MZmineCore {
       } catch (Exception e) {
         e.printStackTrace();
       }
+    }
+
+    // start Py4J serer
+    if(argsParser.isStartPy4J()) {
+      logger.info("Starting Py4J Gateway server with PythonController instance. Standard Py4J Port should be 25335");
+      GatewayServer py4jGatewayServer = new GatewayServer(new PythonController());
+      py4jGatewayServer.start();
     }
 
     // batch mode defined by command line argument

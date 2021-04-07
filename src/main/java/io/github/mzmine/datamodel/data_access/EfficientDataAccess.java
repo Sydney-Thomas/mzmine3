@@ -22,7 +22,9 @@ import io.github.mzmine.datamodel.MassList;
 import io.github.mzmine.datamodel.RawDataFile;
 import io.github.mzmine.datamodel.featuredata.IonMobilogramTimeSeries;
 import io.github.mzmine.datamodel.features.FeatureList;
+import io.github.mzmine.datamodel.features.FeatureListRow;
 import io.github.mzmine.parameters.parametertypes.selectors.ScanSelection;
+import java.util.List;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -86,6 +88,15 @@ public class EfficientDataAccess {
       case INCLUDE_ZEROS -> new FeatureFullDataAccess(flist, dataFile);
     };
   }
+
+
+  public static FeatureDataAccess of(FeatureListRow row, FeatureDataType type, RawDataFile dataFile) {
+    return switch (type) {
+      case ONLY_DETECTED -> new FeatureDetectedDataAccess(row.getFeatureList(), dataFile, List.of(row));
+      case INCLUDE_ZEROS -> new FeatureFullDataAccess(row.getFeatureList(), dataFile, List.of(row));
+    };
+  }
+
 
   public static MobilogramDataAccess of(final IonMobilogramTimeSeries ionTrace,
       final MobilogramAccessType accessType) {

@@ -80,12 +80,16 @@ public abstract class FeatureDataAccess implements IonTimeSeries<Scan> {
    * @param dataFile define the data file in an aligned feature list
    */
   protected FeatureDataAccess(FeatureList flist, @Nullable RawDataFile dataFile) {
+    this(flist,dataFile, null);
+  }
+  protected FeatureDataAccess(FeatureList flist, @Nullable RawDataFile dataFile, @Nullable List<FeatureListRow> rows) {
     this.flist = flist;
     this.dataFile = dataFile;
 
+
     // set rows and number of features
     int totalFeatures = 0;
-    List<FeatureListRow> allRows = flist.getRows();
+    List<FeatureListRow> allRows = rows!=null? rows : flist.getRows();
     // handle aligned flist
     if (flist.getNumberOfRawDataFiles() > 1) {
       if (dataFile != null) {
@@ -109,6 +113,7 @@ public abstract class FeatureDataAccess implements IonTimeSeries<Scan> {
       this.rows = Collections.unmodifiableList(allRows);
       totalFeatures = rows.size();
     }
+    
     this.totalFeatures = totalFeatures;
   }
 

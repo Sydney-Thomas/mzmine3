@@ -42,6 +42,7 @@ public class MZmineArgumentParser {
   private File preferencesFile;
   private boolean isKeepRunningAfterBatch = false;
   private KeepInRam isKeepInRam = KeepInRam.NONE;
+  private boolean startPy4J = false;
 
   public void parse(String[] args) {
     Options options = new Options();
@@ -58,6 +59,10 @@ public class MZmineArgumentParser {
     Option keepRunning = new Option("r", "running", false, "keep MZmine running in headless mode");
     keepRunning.setRequired(false);
     options.addOption(keepRunning);
+
+    Option startPy4J = new Option("s", "py4j", false, "Start Py4J server");
+    startPy4J.setRequired(false);
+    options.addOption(startPy4J);
 
     Option keepInMemory = new Option("m", "memory", true,
         "keep objects (scan data, features, etc) in memory. Options: all, features, centroids, raw, masses_features (masses_features for features and centroids)");
@@ -88,6 +93,12 @@ public class MZmineArgumentParser {
         logger.info(
             () -> "the -r / --running argument was set to keep MZmine alive after batch is finished");
       }
+      this.startPy4J = cmd.hasOption(startPy4J.getLongOpt());
+      if (this.startPy4J) {
+        isKeepRunningAfterBatch = true;
+        logger.info(
+            () -> "Option to start Py4J server active. Will keep tool MZmine running after batch completed");
+      }
 
       String keepInData = cmd.getOptionValue(keepInMemory.getLongOpt());
       if (keepInData != null) {
@@ -103,6 +114,13 @@ public class MZmineArgumentParser {
     }
   }
 
+  /**
+   * Start a Py4J server
+   * @return
+   */
+  public boolean isStartPy4J() {
+    return startPy4J;
+  }
 
   @Nullable
   public File getPreferencesFile() {

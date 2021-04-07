@@ -21,6 +21,7 @@ import io.github.mzmine.datamodel.RawDataFile;
 import io.github.mzmine.datamodel.Scan;
 import io.github.mzmine.datamodel.features.Feature;
 import io.github.mzmine.datamodel.features.FeatureList;
+import io.github.mzmine.datamodel.features.FeatureListRow;
 import java.util.Arrays;
 import java.util.List;
 import javax.annotation.Nullable;
@@ -70,7 +71,11 @@ public class FeatureFullDataAccess extends FeatureDataAccess {
    * @param dataFile define the data file in an aligned feature list
    */
   protected FeatureFullDataAccess(FeatureList flist, @Nullable RawDataFile dataFile) {
-    super(flist, dataFile);
+    this(flist,dataFile, null);
+  }
+
+  protected FeatureFullDataAccess(FeatureList flist, @Nullable RawDataFile dataFile, @Nullable List<FeatureListRow> rows) {
+    super(flist, dataFile, rows);
 
     // return all scans that were used to create the chromatograms in the first place
     int max = 0;

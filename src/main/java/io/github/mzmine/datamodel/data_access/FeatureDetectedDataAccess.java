@@ -21,6 +21,7 @@ import io.github.mzmine.datamodel.RawDataFile;
 import io.github.mzmine.datamodel.Scan;
 import io.github.mzmine.datamodel.features.Feature;
 import io.github.mzmine.datamodel.features.FeatureList;
+import io.github.mzmine.datamodel.features.FeatureListRow;
 import java.util.List;
 import javax.annotation.Nullable;
 
@@ -58,7 +59,11 @@ public class FeatureDetectedDataAccess extends FeatureDataAccess {
    * @param dataFile define the data file in an aligned feature list
    */
   protected FeatureDetectedDataAccess(FeatureList flist, @Nullable RawDataFile dataFile) {
-    super(flist, dataFile);
+    this(flist,dataFile, null);
+  }
+
+  protected FeatureDetectedDataAccess(FeatureList flist, @Nullable RawDataFile dataFile, @Nullable List<FeatureListRow> rows) {
+    super(flist, dataFile, rows);
 
     // detected data points currently on feature/chromatogram
     int detected = getMaxNumOfDetectedDataPoints();
