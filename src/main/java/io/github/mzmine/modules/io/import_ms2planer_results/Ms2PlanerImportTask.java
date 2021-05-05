@@ -16,16 +16,29 @@
 
 package io.github.mzmine.modules.io.import_ms2planer_results;
 
+import io.github.mzmine.datamodel.MZmineProject;
 import io.github.mzmine.datamodel.features.ModularFeatureList;
+import io.github.mzmine.datamodel.features.ModularFeatureListRow;
+import io.github.mzmine.datamodel.features.types.numbers.Ms2PlannerPrecursorType;
+import io.github.mzmine.gui.chartbasics.simplechart.SimpleChartUtility;
+import io.github.mzmine.gui.chartbasics.simplechart.datasets.ColoredXYZDataset;
+import io.github.mzmine.gui.chartbasics.simplechart.providers.PlotXYZDataProvider;
 import io.github.mzmine.parameters.ParameterSet;
+import io.github.mzmine.project.impl.RawDataFileImpl;
 import io.github.mzmine.taskcontrol.AbstractTask;
 import io.github.mzmine.taskcontrol.TaskStatus;
+import java.awt.Color;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Logger;
+import javafx.beans.property.SimpleObjectProperty;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import org.jfree.chart.renderer.PaintScale;
 
 /**
  * Export of a feature cluster (ADAP) to mgf. Used in GC-GNPS
@@ -33,21 +46,29 @@ import java.util.List;
  * @author Du-Lab Team <dulab.binf@gmail.com>
  */
 public class Ms2PlanerImportTask extends AbstractTask {
+  private static Logger logger = Logger.getLogger(Ms2PlanerImportTask.class.getName());
 
   private static final String SPLIT_CHAR = " ";
-  private final int totalRows;
+  private final int totalRows = 0;
+  private final MZmineProject project;
   private int finishedRows = 0;
 
-  private final ModularFeatureList flist;
+  private ModularFeatureList flist;
   private final File file;
 
-  public Ms2PlanerImportTask(ParameterSet parameters, ModularFeatureList flist) {
-    super(flist.getMemoryMapStorage());
+  public Ms2PlanerImportTask(MZmineProject project, ParameterSet parameters) {
+    this(project, parameters, null);
+  }
+  public Ms2PlanerImportTask(MZmineProject project,
+      ParameterSet parameters, ModularFeatureList flist) {
+    super(flist==null? null : flist.getMemoryMapStorage());
+    this.project = project;
     this.flist = flist;
-    totalRows = flist.getNumberOfRows();
 
     file = parameters.getParameter(Ms2PlanerImportParameters.FILENAME).getValue();
   }
+
+
 
   @Override
   public double getFinishedPercentage() {
@@ -64,8 +85,34 @@ public class Ms2PlanerImportTask extends AbstractTask {
     setStatus(TaskStatus.PROCESSING);
 
     List<Ms2PlannerPrecursor> results = importCSV(file);
+    logger.info("Number of precursors: "+results.size());
+    if(flist == null) {
+      logger.info("Creating new feature list");
+      RawDataFileImpl raw = null;
+      try {
+        raw = new RawDataFileImpl("TMP", null);
+        project.addFile(raw);
+        flist = new ModularFeatureList(file.getName(), null, raw);
+      } catch (IOException e) {
+        e.printStackTrace();
+      }
+    }
 
+    // add all to list
+    flist.addRowType(new Ms2PlannerPrecursorType());
 
+    int id = 1;
+    for(Ms2PlannerPrecursor precursor : results) {
+      ModularFeatureListRow row =  new ModularFeatureListRow(flist);
+      row.setID(id);
+      row.set(Ms2PlannerPrecursorType.class, precursor);
+      flist.addRow(row);
+      id++;
+    }
+
+    project.addFeatureList(flist);
+
+    // TODO VISUALIZATION in the 2d raw data viewer
 
     if (getStatus() == TaskStatus.PROCESSING) {
       setStatus(TaskStatus.FINISHED);
@@ -99,6 +146,7 @@ public class Ms2PlanerImportTask extends AbstractTask {
       }
     } catch (IOException e) {
       e.printStackTrace();
+      return List.of();
     }
     return results;
   }

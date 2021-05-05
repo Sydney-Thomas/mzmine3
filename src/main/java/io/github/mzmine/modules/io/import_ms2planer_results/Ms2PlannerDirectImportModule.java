@@ -16,20 +16,18 @@
 
 package io.github.mzmine.modules.io.import_ms2planer_results;
 
-import io.github.mzmine.datamodel.features.ModularFeatureList;
-import io.github.mzmine.parameters.parametertypes.selectors.FeatureListsSelection;
-import java.util.Collection;
-import javax.annotation.Nonnull;
-
 import io.github.mzmine.datamodel.MZmineProject;
+import io.github.mzmine.datamodel.features.ModularFeatureList;
 import io.github.mzmine.modules.MZmineModuleCategory;
 import io.github.mzmine.modules.MZmineProcessingModule;
 import io.github.mzmine.parameters.ParameterSet;
 import io.github.mzmine.taskcontrol.Task;
 import io.github.mzmine.util.ExitCode;
+import java.util.Collection;
+import javax.annotation.Nonnull;
 
-public class Ms2PlanerImportModule implements MZmineProcessingModule {
-  private static final String MODULE_NAME = "Import MS2 planer results";
+public class Ms2PlannerDirectImportModule implements MZmineProcessingModule {
+  private static final String MODULE_NAME = "Direct import MS2 planer results";
   private static final String MODULE_DESCRIPTION =
       "Import the results from MS2 planer from a csv file into a feature list";
 
@@ -47,18 +45,9 @@ public class Ms2PlanerImportModule implements MZmineProcessingModule {
   @Nonnull
   public ExitCode runModule(@Nonnull MZmineProject project, @Nonnull ParameterSet parameters,
       @Nonnull Collection<Task> tasks) {
-    ModularFeatureList[] featureLists = parameters
-        .getParameter(Ms2PlanerImportParameters.FEATURE_LISTS)
-        .getValue().getMatchingFeatureLists();
-
-    if(featureLists.length>0) {
-      Ms2PlanerImportTask task = new Ms2PlanerImportTask(project, parameters, featureLists[0]);
+      Ms2PlanerImportTask task = new Ms2PlanerImportTask(project, parameters);
       tasks.add(task);
       return ExitCode.OK;
-    }
-    else {
-      return ExitCode.ERROR;
-    }
   }
 
   @Override
@@ -68,7 +57,7 @@ public class Ms2PlanerImportModule implements MZmineProcessingModule {
 
   @Override
   public @Nonnull Class<? extends ParameterSet> getParameterSetClass() {
-    return Ms2PlanerImportParameters.class;
+    return Ms2PlannerDirectImportParameters.class;
   }
 
 }
